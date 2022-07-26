@@ -2,6 +2,8 @@ package com.example.ddd_start.domain.order;
 
 import com.example.ddd_start.domain.common.Money;
 import com.example.ddd_start.domain.product.Product;
+import javax.persistence.AttributeOverride;
+import javax.persistence.Column;
 import javax.persistence.Embedded;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
@@ -27,6 +29,7 @@ public class OrderLine {
   @JoinColumn(name = "order_id")
   private Order order;
   @Embedded
+  @AttributeOverride(name = "value", column = @Column(name = "amount"))
   private Money amount;
   private Integer quantity;
 

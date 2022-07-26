@@ -47,6 +47,7 @@ public class Order {
   @OneToMany(mappedBy = "order")
   List<OrderLine> orderLines;
   @Embedded
+  @AttributeOverride(name = "value", column = @Column(name = "total_amounts"))
   private Money totalAmounts;
   @Embedded
   private Orderer orderer;
