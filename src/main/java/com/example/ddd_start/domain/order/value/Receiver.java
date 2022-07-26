@@ -1,4 +1,4 @@
-package com.example.ddd_start.domain.order;
+package com.example.ddd_start.domain.order.value;
 
 import javax.persistence.Embeddable;
 import lombok.AllArgsConstructor;
