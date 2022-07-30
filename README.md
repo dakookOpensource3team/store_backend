@@ -83,6 +83,8 @@
 - hashCode를 구현하는 이유?
   - Hash를 이용하는 자료구조 예를 들어 HashSet, HashMap과 같은 자료구조에서 key를 해시를 이용하여 저장하기때문에 hashCode를 구현해야 한다. -> 이펙티브 자바 책을 읽으면 알 수 있음
 
+
+
 #### 유비 쿼터스 언어
 
 개발자는 도메인과 코드사이에서 불필요한 해석을 줄이기 위해 유비쿼터스 언어를 쓰면 좋다.
@@ -98,8 +100,164 @@
 '표현', '응용', '도메인', '인프라스트럭처'는 아키텍처를 설계할 때 출현하는 전형적인 4가지 영역이다.
 
 - 4영역 중 표현 영역은 사용자의 요청을 받아 응용 영역에 전달하고 응용 영역의 처리 결과를 다시 사용자에게 보여주는 역할을 한다.
+- **표현 영역**
   - Spring MVC가 표현 영역을 위한 기술에 해당된다.
   - 웹 애플리케이션에서 표현 영역의 사용자는 웹 브라우저를 사용하는 사람일 수 도 있고, REST API를 호출하는 외부 시스템일 수 있다.
-  - ![](./img/presentation_section.jpg)
-- 
+  - ![](./img/presentation_section.jpeg)
+
+- **응용 영역**
+
+  - 표현 영역을 통해 사용자의 요청을 전달받은 응용 영역은 시스템이 사용자에게 제공해야할 기능을 구현하는데 `'주문 등록', '주문 취소', '상품 상세 조회'`와 같은 기능 구현을 예로 들 수 있다.
+
+  - 응용 영역은 기능을 구현하기 위해 도메인 영역의 도메인 모델을 사용한다.
+
+    ~~~java
+    @Service
+    @RequiredArgsConstructor
+    public class CancelOrderService {
+    
+      private final OrderRepository orderRepository;
+    
+      @Transactional
+      public void cancelOrder(Long orderId) {
+        Optional<Order> optionalOrder = orderRepository.findById(orderId);
+        optionalOrder.ifPresent(Order::cancel);
+      }
+    }
+    ~~~
+
+  - 응용 서비스는 로직을 직접 수행하기보다는 도메인 모델에 로직 수행을 위임한다. <br>이와 반대되는 아키텍처는 1장에 영철님께서 설명해주신 트랜잭션 스크립트 패턴이다.(서비스 에서 모든 로직을 다 구현함.)
+  - ![application_section](./img/application_section.jpeg)
+
+- **도메인 영역**
+  - 도메인 영역은 도메인 모델을 구현한다. 1장에서 봤던 Order, OrderLine, ShippingInfo와 같은 도메인 모델이 이 영역에 위치한다.
+  - 도메인 모델은 도메인의 핵심 로직을 구현한다.
+    - ex) 주문 도메인 - 배송지 변경, 결제 완료, 주문 취소, ...
+    - ex) 라스트마일 주문 도메인 - 주문 생성, 주문 변경, 주문 취소, ...
+- **인프라 스트럭쳐 영역**
+  - 인프라 스트럭쳐 영역은 구현 기술에 대한 것을 다룬다.
+  - 이 영역은 RDBMS 연동 처리, 메시징 큐에 메시지를 전송하거나 수신하는 기능을 구현한다. 몽고 DB나 Redis와의 데이터 연동을 처리한다.
+  - 인프라 스트럭쳐 영역은 논리적인 개념을 표현하기 보다는 실제 구현을 다룬다.
+  - ![infrastructure_section](./img/infrastructure_section.jpeg)
+
+
+
+- **도메인 영역, 응용 영역, 표현 영역은 구현 기술을 사용한 코드를 직접 말드지 않는다. 대신 인프라스트럭처 영역에서 제공하는 기능을 사용해서 필요한 기능을 개발한다. **ㅇ
+  - 예를 들어 응용 영역에서 DB에 보관된 데이터가 필요하면 인프라스트럭처 영역의 DB 모듈을 사용하여 데이터를 읽어온다.
+
+
+
+#### 계층 구조 아키텍처
+
+- 4영역을 구성할 때 많이 사용하는 아키텍처과 아래의 그림과 같은 계층 구조이다.
+- 표현 영역과 응용 영역은 도메인 영역을 사용하고, 도메인 영역은 인프라스트럭처 영역을 사용하므로 계층 구조를 적용하기에 적당해 보인다.
+- 도메인의 복잡도에 따라 응용과 도메인을 분리하기도 하고, 한계층으로 합치는 경우도 존재한다.
+  - <img src="./img/architecture.jpeg" style="zoom:50%;" />
+
+- 계층 구조는 특성상 상위 계층에서 하위 계층으로의 의존만 존재하고 하위 계층은 상위 계층에 의존하지 않는다.
+
+  - 예를 들면 표현 영역은 응용영역에 의존하지만 응용영역은 반대로 표현영역에 의존하지 않거나, 응용 영역이 도메인 영역에 의존하지만 도메인 영역은 응용영역에 의존하지 않는다.
+
+  - 계층 구조를 엄격하게 적용한다면 상위 계층은 바로 아래의 계층에만 의존을 가져가야 하지만, 구현의 편리함을 위해 약간의 유연성과 융통성을 적용할 수있다. 
+
+    - 예를 들면 응용영역은 인프라스트럭처 영역을 의존하면 않되지만 외부시스템과의 연동을 위해 도메인보다 더 아래 계층인 인프라 스트럭처 영역을 의존하기도 한다.
+
+  - <img src="/Users/xodn5235/Documents/Study/ddd_start/img/architecture2.jpeg" alt="architecture2" style="zoom:50%;" />
+
+  - 하지만 이렇게 되면, 응용 계층과 도메인 계층은 인프라스트럭처 계층에 종속이 된다.
+
+  - CalculateDiscountService에서 DroolsEngine을 통해 할인가격을 구하는 기능을 구현해 보았다.
+
+    ~~~java
+    @Service
+    @RequiredArgsConstructor
+    public class CalculateDiscountService {
+    
+      private final DroolsRuleEngine droolsRuleEngine;
+      private final CustomerRepository customerRepository;
+    
+      public void calculateDiscount(List<OrderLine> orderLines, Long customerId) {
+        Optional<Customer> optionalCustomer = customerRepository.findById(customerId);
+        Customer customer = optionalCustomer.orElseThrow(NoSuchElementException::new);
+    
+        List<?> facts = Arrays.asList(customer, new Money());
+        droolsRuleEngine.evalutate("discountCalculate", facts);
+      }
+    }
+    
+    =====================================================================================
+    
+    @Slf4j
+    @Component
+    public class DroolsRuleEngine {
+    
+      public void evalutate(String sessionName, List<?> facts) {
+        //간략하게 함
+        log.info(sessionName + " 세션에서 할인 금액을 계산합니다.");
+      }
+    }
+    ~~~
+
+  - 위 코드의 문제점은 CalculateDiscountService가 Drools 자체에 의존하지 않는다고 생각할 수 있지만, "discountCalculate"는 Drools의 세션을 의미한다. 만약 DroolsRuleEngine의 세션이 변경되면 CalculateDiscountSerivce의 코드 변경이 불가피 할 것이다.
+  - 이렇게 인프라스트럭처에 의존하면 '테스트 어려움'과 '기능 확장의 어려움'이라는 두 가지 문제가 발생하는 것을 알 수 있다. 이러한 문제를 하기 위해서는 DIP를 이용하면 된다.
+
+
+
+#### DIP (Dependency Inversion Principle) 의존성 역전 원칙
+
+- 가격할인 계산을 하려면 아래의 그림과 같이 고객 정보를 구하고, 구한 고객의 정보와 주문 정보를 이용해서 룰을 실행해야 한다.
+
+<img src="./img/high_low_module.jpeg" alt="high_low_module" style="zoom:30%;" />
+
+- 여기서 CalculateDiscountService는 고수준 모듈이다. 고수준 모듈은 의미 있는 단일 기능을 제공하는 모듈로 CalculateDiscountService는 가격 할인 계산이라는 기능을 구현한다.
+  - 고수준 모듈을 기능을 구현하려면 여러 하위 기능이 필요하다. 가격 할인 계산 기능을 구현하려면 고객 정보를 구해야 하고 룰을 실행해야 하는데 이 두기능이 하위 기능이다. (고위 기능: 가격 할인 계산, 하위 기능: 고객 정보 구하기, 할인 룰 실행)
+  - 저수준 모듈은 위에 서술해놓은 하위 기능을 실제로 구현한 것이다. 그림과 같이 JPA를 이용해서 고객 정보를 읽어오는 모듈과 Drools로 룰을 실행하는 모듈이 저수준 모듈이 된다.
+- 고수준 모듈이 제대로 동작하려면 저수준 모델을 사용해야 한다. 그런데 고수준 모듈이 저수준 모듈을 사용하면 구현 변경과 테스트가 어렵다는 문제에 직면한다.
+- DIP는 이문제를 해결하기 위해 저수준 모듈이 고수준 모듈에 의존하도록 바꾼다.
+
+~~~java
+public class CalculateDiscountService {
+
+  private final CalculateRuleEngine calculateRuleEngine;
+  private final CustomerRepository customerRepository;
+
+  public void calculateDiscount(List<OrderLine> orderLines, Long customerId) {
+    Optional<Customer> optionalCustomer = customerRepository.findById(customerId);
+    Customer customer = optionalCustomer.orElseThrow(NoSuchElementException::new);
+
+    List<?> facts = Arrays.asList(customer, new Money());
+    calculateRuleEngine.evalutate(facts);
+  }
+}
+
+=====================================================================================
+
+public interface CalculateRuleEngine {
+
+  public void evalutate( List<?> facts);
+}
+
+=====================================================================================
+
+@Slf4j
+@Component
+public class DroolsRuleEngine implements CalculateRuleEngine{
+
+  public void evalutate(List<?> facts) {
+    final String session = "droolsRuleSession";
+    log.info(session + "를 이용하여 할인 금액을 계산합니다.");
+  }
+}
+~~~
+
+- CalculateDiscountService에서 DroolsEngine에 대해 의존하는 코드가 사라졌다. DroolsEngine을 추상화한 CalculateRuleEngine를 의존하고 있다. 실제로는 런타임때 DroolsEngine이 실행된다.
+
+- 의존 구조가 아래의 그림과 같이 변경 되었다.
+
+  <img src="./img/high_low_module2.jpeg" alt="high_low_module2" style="zoom:33%;" />
+
+- 해당 구조를 보면 CalculateDiscountService는 더이상 구현 기술인 Drools에 의존하지 않고 추상화한 CalculateRuleEngine을 의존한다.
+  - 룰을 이용한 할인 금액 계산은 고수준 모듈의 개념이므로 CalculateRuleEngine 인터페이스는 고수준 모듈에 속한다.
+  - DroolsRuleEngine은 고수준 모듈인 CalcualteRuleEngine을 구현한 것이므로 저수준 모듈에 속한다.(저는 책과 다르게 이해하였습니다.)
+    - 책에는 "DroolsRuleEngine은 고수준의 하위 기능인 CalcualteRuleEngine를 구현한 것이므로 저수준 모듈에 속한다." 이렇게 적혀있습니다.
 

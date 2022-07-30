@@ -31,11 +31,15 @@ public class OrderLine {
   @Embedded
   @AttributeOverride(name = "value", column = @Column(name = "amount"))
   private Money amount;
+  @Embedded
+  @AttributeOverride(name = "value", column = @Column(name = "price"))
+  private Money price;
   private Integer quantity;
 
-  public OrderLine(Product product, Order order, Money amount, Integer quantity) {
+  public OrderLine(Product product, Order order, Integer quantity) {
     changeProduct(product);
     changeOrder(order);
+    this.price = product.getPrice();
     this.amount = calculateAmount();
     this.quantity = quantity;
   }
