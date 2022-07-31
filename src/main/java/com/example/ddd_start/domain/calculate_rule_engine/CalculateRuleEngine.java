@@ -1,4 +1,4 @@
-package com.example.ddd_start.infrastructure.calculate_rule_engine;
+package com.example.ddd_start.domain.calculate_rule_engine;
 
 import java.util.List;
 
