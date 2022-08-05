@@ -1,7 +1,5 @@
 package com.example.ddd_start.domain.order.value;
 
-import lombok.Getter;
-
 public enum OrderState {
   PAYMENT_WAITING(true),
   PREPARING(true),
@@ -16,7 +14,7 @@ public enum OrderState {
     this.isShippingChangeable = isShippingChangeable;
   }
 
-  public Boolean getIsShippingChangeable() {
+  public Boolean getIsShippingInfoChangeable() {
     return isShippingChangeable;
   }
 }

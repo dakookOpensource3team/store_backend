@@ -15,6 +15,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 import javax.persistence.AttributeOverride;
 import javax.persistence.AttributeOverrides;
+import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Embedded;
 import javax.persistence.Entity;
@@ -44,7 +45,7 @@ public class Order {
           column = @Column(name = "receiver_phone_number"))
   })
   private ShippingInfo shippingInfo;
-  @OneToMany(mappedBy = "order")
+  @OneToMany(mappedBy = "order", cascade = CascadeType.ALL)
   List<OrderLine> orderLines;
   @Embedded
   @AttributeOverride(name = "value", column = @Column(name = "total_amounts"))
@@ -98,7 +99,7 @@ public class Order {
   }
 
   public void changeShippingInfo(ShippingInfo shippingInfo) {
-    if (!orderState.getIsShippingChangeable()) {
+    if (!orderState.getIsShippingInfoChangeable()) {
       throw new IllegalStateException(
           "can't chang shipping info because this status: " + orderState);
     }
@@ -106,8 +107,19 @@ public class Order {
     this.shippingInfo = shippingInfo;
   }
 
+
+  public void completePayment() {
+    if (orderState != PAYMENT_WAITING) {
+      throw new IllegalStateException("이미 결제과 완료된 주문입니다.");
+    }
+    this.orderState = PREPARING;
+  }
+
   public void changeShipped() {
     verifyNotYetShipped();
+    if (this.orderState != PREPARING) {
+      throw new IllegalStateException("결제과 완료됬을 때만 출고가 가능합니다.");
+    }
     this.orderState = SHIPPED;
   }
 
@@ -126,10 +138,6 @@ public class Order {
     if (orderState != PAYMENT_WAITING || orderState != PREPARING) {
       throw new IllegalStateException("이미 출고 됬습니다.");
     }
-  }
-
-  public void completePayment() {
-    this.orderState = PREPARING;
   }
 
 }

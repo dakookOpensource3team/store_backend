@@ -36,6 +36,17 @@
 - 난 여태까지 도메인과 도메인 모델은 동일하게 생각했다. 엄연히 보면 도메인이라는 범위 안에 도메인 모델이 속해있는 것이다.
 - 도메인 모델은 특정 도메인을 개념적으로 표현한 것이다.
   - 주문 도메인을 떠올려보자, 주문 도메인은 주문 번호, 총 주문 금액등을 속성으로 가지고, 배송지 입력, 주문 취소같은 기능을 가진다.
+- 도메인 모델의 종류
+  - 객체 도메인 모델
+  - 상태 다이어그램 등
+
+- 도메인 모델은 도메인 전문가와 커뮤니케이션을 하기위해 필요하다.
+
+
+
+도메인 모델 패턴 <-> 트랜잭션 스크립트 패턴
+
+트랜잭션 스크립트 패턴: 도메인은 그냥 단순하게 속성값만 저장하고, 모든 로직을 서비스에 구현한다.
 
 
 
@@ -68,3 +79,245 @@
 
 - 도메인 계층은 도메인의 핵식 규칙을 구현한다. 주문 도메인의 경우 "출고 전에 배송지를 변경할 수 있다"라는 규칙과, "주문 취소는 출고 전에 할 수 있다."라는 규칙을 구현한 코드가 도메인 계층에 위치하게 된다.
 - 핵심 규칙을 구현한 코드는 도메인 모델에만 위치하기 때문에 규칙이 바뀌거나 규칙을 확정해야 할 때, 다른 코드에 영향을 덜 주고 변경 내역을 모델에 반영할 수 있게된다.
+  - 응용 영역은 도메인의 메소드만 조합하여 구현한다.
+- hashCode를 구현하는 이유?
+  - Hash를 이용하는 자료구조 예를 들어 HashSet, HashMap과 같은 자료구조에서 key를 해시를 이용하여 저장하기때문에 hashCode를 구현해야 한다. -> 이펙티브 자바 책을 읽으면 알 수 있음
+
+
+
+#### 유비 쿼터스 언어
+
+개발자는 도메인과 코드사이에서 불필요한 해석을 줄이기 위해 유비쿼터스 언어를 쓰면 좋다.
+
+예를 들면 주문 상태에 대한 enum을 구현할 때 STEP1, STEP2, STEP3로 구현하는 것이 아니라 PAYMENT_WATING, PREPARING, SHIPPED와 같이 바로 해석이 가능할 수 있게 코딩을 한다.
+
+
+
+### 2. 아키텍처 개요
+
+#### 4 개의 영역
+
+'표현', '응용', '도메인', '인프라스트럭처'는 아키텍처를 설계할 때 출현하는 전형적인 4가지 영역이다.
+
+- 4영역 중 표현 영역은 사용자의 요청을 받아 응용 영역에 전달하고 응용 영역의 처리 결과를 다시 사용자에게 보여주는 역할을 한다.
+- **표현 영역**
+  - Spring MVC가 표현 영역을 위한 기술에 해당된다.
+  - 웹 애플리케이션에서 표현 영역의 사용자는 웹 브라우저를 사용하는 사람일 수 도 있고, REST API를 호출하는 외부 시스템일 수 있다.
+  - ![](./img/presentation_section.jpeg)
+
+- **응용 영역**
+
+  - 표현 영역을 통해 사용자의 요청을 전달받은 응용 영역은 시스템이 사용자에게 제공해야할 기능을 구현하는데 `'주문 등록', '주문 취소', '상품 상세 조회'`와 같은 기능 구현을 예로 들 수 있다.
+
+  - 응용 영역은 기능을 구현하기 위해 도메인 영역의 도메인 모델을 사용한다.
+
+    ~~~java
+    @Service
+    @RequiredArgsConstructor
+    public class CancelOrderService {
+    
+      private final OrderRepository orderRepository;
+    
+      @Transactional
+      public void cancelOrder(Long orderId) {
+        Optional<Order> optionalOrder = orderRepository.findById(orderId);
+        optionalOrder.ifPresent(Order::cancel);
+      }
+    }
+    ~~~
+
+  - 응용 서비스는 로직을 직접 수행하기보다는 도메인 모델에 로직 수행을 위임한다. <br>이와 반대되는 아키텍처는 1장에 영철님께서 설명해주신 트랜잭션 스크립트 패턴이다.(서비스 에서 모든 로직을 다 구현함.)
+  - ![application_section](./img/application_section.jpeg)
+
+- **도메인 영역**
+  - 도메인 영역은 도메인 모델을 구현한다. 1장에서 봤던 Order, OrderLine, ShippingInfo와 같은 도메인 모델이 이 영역에 위치한다.
+  - 도메인 모델은 도메인의 핵심 로직을 구현한다.
+    - ex) 주문 도메인 - 배송지 변경, 결제 완료, 주문 취소, ...
+    - ex) 라스트마일 주문 도메인 - 주문 생성, 주문 변경, 주문 취소, ...
+- **인프라 스트럭쳐 영역**
+  - 인프라 스트럭쳐 영역은 구현 기술에 대한 것을 다룬다.
+  - 이 영역은 RDBMS 연동 처리, 메시징 큐에 메시지를 전송하거나 수신하는 기능을 구현한다. 몽고 DB나 Redis와의 데이터 연동을 처리한다.
+  - 인프라 스트럭쳐 영역은 논리적인 개념을 표현하기 보다는 실제 구현을 다룬다.
+  - ![infrastructure_section](./img/infrastructure_section.jpeg)
+
+
+
+- **도메인 영역, 응용 영역, 표현 영역은 구현 기술을 사용한 코드를 직접 말드지 않는다. 대신 인프라스트럭처 영역에서 제공하는 기능을 사용해서 필요한 기능을 개발한다. **
+  - 예를 들어 응용 영역에서 DB에 보관된 데이터가 필요하면 인프라스트럭처 영역의 DB 모듈을 사용하여 데이터를 읽어온다.
+
+
+
+#### 계층 구조 아키텍처
+
+- 4영역을 구성할 때 많이 사용하는 아키텍처과 아래의 그림과 같은 계층 구조이다.
+- 표현 영역과 응용 영역은 도메인 영역을 사용하고, 도메인 영역은 인프라스트럭처 영역을 사용하므로 계층 구조를 적용하기에 적당해 보인다.
+
+  - 아래의 DIP에 설명이 되어 있겠지만, 아래의 그림은 런타임 의존성에 대한 구조이다.
+
+- 도메인의 복잡도에 따라 응용과 도메인을 분리하기도 하고, 한계층으로 합치는 경우도 존재한다.
+  - <img src="./img/architecture.jpeg" style="zoom:50%;" />
+
+- 계층 구조는 특성상 상위 계층에서 하위 계층으로의 의존만 존재하고 하위 계층은 상위 계층에 의존하지 않는다.
+
+  - 예를 들면 표현 영역은 응용영역에 의존하지만 응용영역은 반대로 표현영역에 의존하지 않거나, 응용 영역이 도메인 영역에 의존하지만 도메인 영역은 응용영역에 의존하지 않는다.
+
+  - 계층 구조를 엄격하게 적용한다면 상위 계층은 바로 아래의 계층에만 의존을 가져가야 하지만, 구현의 편리함을 위해 약간의 유연성과 융통성을 적용할 수있다. 
+
+    - 예를 들면 응용영역은 인프라스트럭처 영역을 의존하면 않되지만 외부시스템과의 연동을 위해 도메인보다 더 아래 계층인 인프라 스트럭처 영역을 의존하기도 한다.
+
+  - <img src="./img/architecture2.jpeg" alt="architecture2" style="zoom:50%;" />
+
+  - 하지만 이렇게 되면, 응용 계층과 도메인 계층은 인프라스트럭처 계층에 종속이 된다.
+
+  - CalculateDiscountService에서 DroolsEngine을 통해 할인가격을 구하는 기능을 구현해 보았다.
+
+    ~~~java
+    @Service
+    @RequiredArgsConstructor
+    public class CalculateDiscountService {
+    
+      private final DroolsRuleEngine droolsRuleEngine;
+      private final CustomerRepository customerRepository;
+    
+      public void calculateDiscount(List<OrderLine> orderLines, Long customerId) {
+        Optional<Customer> optionalCustomer = customerRepository.findById(customerId);
+        Customer customer = optionalCustomer.orElseThrow(NoSuchElementException::new);
+    
+        List<?> facts = Arrays.asList(customer, new Money());
+        droolsRuleEngine.evalutate("discountCalculate", facts);
+      }
+    }
+    
+    =====================================================================================
+    
+    @Slf4j
+    @Component
+    public class DroolsRuleEngine {
+    
+      public void evalutate(String sessionName, List<?> facts) {
+        //간략하게 함
+        log.info(sessionName + " 세션에서 할인 금액을 계산합니다.");
+      }
+    }
+    ~~~
+
+  - 위 코드의 문제점은 CalculateDiscountService가 Drools 자체에 의존하지 않는다고 생각할 수 있지만, "discountCalculate"는 Drools의 세션을 의미한다. 만약 DroolsRuleEngine의 세션이 변경되면 CalculateDiscountSerivce의 코드 변경이 불가피 할 것이다.
+  - 이렇게 인프라스트럭처에 의존하면 '테스트 어려움'과 '기능 확장의 어려움'이라는 두 가지 문제가 발생하는 것을 알 수 있다. 이러한 문제를 하기 위해서는 DIP를 이용하면 된다.
+
+
+
+#### DIP (Dependency Inversion Principle) 의존성 역전 원칙
+
+- 가격할인 계산을 하려면 아래의 그림과 같이 고객 정보를 구하고, 구한 고객의 정보와 주문 정보를 이용해서 룰을 실행해야 한다.
+
+<img src="./img/high_low_module.jpeg" alt="high_low_module" style="zoom:30%;" />
+
+- 여기서 CalculateDiscountService는 고수준 모듈이다. 고수준 모듈은 의미 있는 단일 기능을 제공하는 모듈로 CalculateDiscountService는 가격 할인 계산이라는 기능을 구현한다.
+  - 고수준 모듈을 기능을 구현하려면 여러 하위 기능이 필요하다. 가격 할인 계산 기능을 구현하려면 고객 정보를 구해야 하고 룰을 실행해야 하는데 이 두기능이 하위 기능이다. (고위 기능: 가격 할인 계산, 하위 기능: 고객 정보 구하기, 할인 룰 실행)
+  - 저수준 모듈은 위에 서술해놓은 하위 기능을 실제로 구현한 것이다. 그림과 같이 JPA를 이용해서 고객 정보를 읽어오는 모듈과 Drools로 룰을 실행하는 모듈이 저수준 모듈이 된다.
+- 고수준 모듈이 제대로 동작하려면 저수준 모델을 사용해야 한다. 그런데 고수준 모듈이 저수준 모듈을 사용하면 구현 변경과 테스트가 어렵다는 문제에 직면한다.
+- DIP는 이문제를 해결하기 위해 저수준 모듈이 고수준 모듈에 의존하도록 바꾼다.
+
+~~~java
+public class CalculateDiscountService {
+
+  private final CalculateRuleEngine calculateRuleEngine;
+  private final CustomerRepository customerRepository;
+
+  public void calculateDiscount(List<OrderLine> orderLines, Long customerId) {
+    Optional<Customer> optionalCustomer = customerRepository.findById(customerId);
+    Customer customer = optionalCustomer.orElseThrow(NoSuchElementException::new);
+
+    List<?> facts = Arrays.asList(customer, new Money());
+    calculateRuleEngine.evalutate(facts);
+  }
+}
+
+=====================================================================================
+
+public interface CalculateRuleEngine {
+
+  public void evalutate( List<?> facts);
+}
+
+=====================================================================================
+
+@Slf4j
+@Component
+public class DroolsRuleEngine implements CalculateRuleEngine{
+
+  public void evalutate(List<?> facts) {
+    final String session = "droolsRuleSession";
+    log.info(session + "를 이용하여 할인 금액을 계산합니다.");
+  }
+}
+~~~
+
+- CalculateDiscountService에서 DroolsEngine에 대해 의존하는 코드가 사라졌다. DroolsEngine을 추상화한 CalculateRuleEngine를 의존하고 있다. 실제로는 런타임때 DroolsEngine이 실행된다.
+
+- 의존 구조가 아래의 그림과 같이 변경 되었다.
+
+  <img src="./img/high_low_module2.jpeg" alt="high_low_module2" style="zoom:33%;" />
+
+- 해당 구조를 보면 CalculateDiscountService는 더이상 구현 기술인 Drools에 의존하지 않고 추상화한 CalculateRuleEngine을 의존한다.
+  - 룰을 이용한 할인 금액 계산은 고수준 모듈의 개념이므로 CalculateRuleEngine 인터페이스는 고수준 모듈에 속한다.
+  - DroolsRuleEngine은 고수준 모듈인 CalcualteRuleEngine을 구현한 것이므로 저수준 모듈에 속한다.(저는 책과 다르게 이해하였습니다.)
+    - 책에는 "DroolsRuleEngine은 고수준의 하위 기능인 CalcualteRuleEngine를 구현한 것이므로 저수준 모듈에 속한다." 이렇게 적혀있습니다.
+  - 테스트를 진행할 때는, Mock 객체와, Stub을 사용할 수 있다면 Stub을 좀 더 사용하는 방향으로 나아가는 것이 더 좋을 것이다.
+
+#### 도메인 영역의 주요 구성 요소
+
+| 요소                            | 설명                                                         |
+| ------------------------------- | ------------------------------------------------------------ |
+| 엔티티<br>ENTITY                | 고유의 식별자를 갖는 객체로 자신의 라이프 사이클을 갖는다. Order, 회원, 상품과 같이 도메인의 고유한 개념을 표현한다.<br>도메인 모델의 데이터를 포함하며 해당 데이터와 관련된 기능을 함께 제공한다. |
+| 밸류<br>VALUE                   | 고유의 실벼자를 갖지 않는 객체로 주로 개념적으로 하나인 값을 표현할 때 사용된다. <br>예를 들면 Address나 구매 금액을 위한 Money 와 같은 타입이 밸류 타입이다. <br>엔티티의 속성으로 사용할 뿐만아니라 다른 밸류 타입의 속성으으로도 사용된다. |
+| 애그리거트AGGREGATE             | 애그리거트는 연관덴 엔티티와 밸류 객체를 개념적으로 하나로 묶은 것이다. <br>예를 들면 주문과 관련된 Order 엔티티, OrderLine 밸류, Orderer 밸류 객체를 주문 애그리거트로 묶을 수 있다. |
+| 레포지토리REPOSITORY            | 도메인 모델의 영속성을 처리한다.                             |
+| 도메인 서비스<br>DOMAIN SERVICE | 특정 엔티티에 속하지 않은 도멘인 로직을 제공한다.<br> 할인 금액 계산은 상품, 쿠폰, 회원 등급, 구매 금액 등 다양한 조건을 이용해서 구현하게 되는데, 이렇게 도메인 로직이 여러 엔티티와 밸류를 필요로 하면 도메인 서비스에서 로직을 구현하면 된다. |
+
+- 책과 같이 나도 처음에는 "DB의 엔티티"와 "도메인 모델의 엔티티"가 같다고 생각했다. 책을 읽으면서 이해했을 때 "DB의 엔티티"와 "도메인 모델의 엔티티"의 차이점으로는 "도메인 모델의 엔티티"는 속성값 뿐만 아니라 도메인 기능을 함께 제공해준다는 것이다.
+- 또 다른 차이점으로는 도메인 모델은 두개 이상의 개념적으로 하나인 데이터를 Value 타입으로 표현할 수 있다.
+  - 배송지를 나타내는 Address, 주문자를 나타내는 Orderer 등,,
+
+**밸류 타입**
+
+- 밸류 타입은 불변으로 구현할 것이 권장된다. 이는 엔티티의 밸류 타입 데이터를 변경할 때는 객체 자체를 완전히 교체한다는 것을 의미한다.(REST API로 치면은 PUT?과 동일한 것 같다.)
+  - 예를 들면 배송지 정보를 변경할 때 시, 구, 동 정보를 각각 변경하는 것이 아닌 한번에 Address 객체 자체로 변경한다.
+
+**애그리거트**
+
+- 도메인 모델이 복잡해지면 개발자가 전체 구조가 아닌 한 개 엔티티와 밸류에만 집중할 수 있는 상황이 발생한다. 이때 상위 수준에서 모델을 관리하지 않고 개별 요소에만 초점을 맞추다 보면, 큰 수준에서 모델을 이해하지 못해 큰 틀에서 모델을 관리할 수 없는 상황에 빠질 수 있다.
+- 그래서 상위 수준에서 모델을 볼 수 있어야 전체 모델의 관계와 개별 모델을 이해하는데 도움이 된다. 도메인 모델에서 전체 구조를 이해하는데 도움이 되는 것이 바로 `애그리거트`이다.
+
+**애그리거트는 관련 객체를 하나로 묶은 군집이다.**
+
+- 애그리거트의 대표적인 예가 주문이다.
+  - 주문이라는 도메인 개념은 `주문`, `배송지 정보`, `주문자`, `주문 목록`, `총 결제 금액`등의 하위 모델로 구성된다. 이 하위 개념을 표현한 모델을 하나로 묶어서 "주문"이라는 상위 개념으로 표현할 수 있다.
+- 애그리 거트는 군집에 속한 객체를 관리하는 루트 엔티티를 갖는다. 루트 엔티티는 애그리거트에 속해 있는 엔티티와 벨류 객체를 이용해서 애그리거트가 구현해야 할 기능을 제공한다.
+
+<img src="./img/aggregate.jpeg" alt="aggregate" style="zoom:25%;" />
+
+**레포지토리**
+
+- 도메인 객체를 지속적으로 사용하려면 RDB, NoSQL, 로컬 파일과 같은 물리적인 저장소에 도메인 객체를 보관해야 한다. 이를 위한 도메인 모델이 레포지토리이다.
+- 레포지토리는 애그리거트 단위로 도메인 객체를 저장하고 조회하는 기능을 정의한다.
+
+#### 인프라스트럭처 개요
+
+- 인프라스트럭처는 표현 영역, 응용 영역, 도메인 영역을 지원한다. 도메인 객체의 영속성 처리, 트랜잭션, SMTP 클라이언트, REST 클라이언트 등 다른 영역에서 필요로 하는 프레임워크, 구현 기술, 보조 기능을 지원한다.
+- 도메인 영역과, 응용 영역에서 인프라스트럭쳐를 직접 의존하기 보단, 상위 두영역(도메인, 응용)영역에서 정의한 인터페이스를 인프라 스트럭처 영역에서 구현하는 것이 시스템적으로 더 유연하고 테스트를 작성하기 쉬운 이점을 가져갈 수 있다.
+  - 허나 구현의 편리함은 DIP가 주는 다른 장점(변경의 유연함, 테스트가 쉬움)만큼 중요하기 때문에 DIP의 장점을 해치지 않는 범위에서 응용 영역과 도메인 영역에서 구현기술에 대한 의존을 가져가는 것이 나쁘지 않다. - 책의 필자
+
+#### 모듈 구성
+
+- 아키텍처의 각 영역은 별도 패키지에 위치한다. 패키지 구성 규칙에 정답이 존재하는 것은 아니지만 아래의 그림들과 같이 책의 필자는 예시를 정리하였다.
+  - 책의 필자는 한 패키지에 10 ~ 15개정도의 타입 개수를 유지하는 것을 권장했다.
+- 그 중에서 나는 2.21을 참고하여 이번 프로젝트를 구현해보았다.
+
+<img src="./img/module1.jpeg" alt="module1" style="zoom:30%;" />
+
+<img src="./img/module2.jpeg" alt="module2" style="zoom:30%;" />
+
+<img src="./img/module3.jpeg" alt="module3" style="zoom:30%;" />
+
+// 고려 사항: 카탈로그에도 Product가 포함되고 주문에도 Product가 포함되는데, 어떻게 가져가야 할지?
