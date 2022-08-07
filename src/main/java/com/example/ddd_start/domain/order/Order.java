@@ -99,11 +99,7 @@ public class Order {
   }
 
   public void changeShippingInfo(ShippingInfo shippingInfo) {
-    if (!orderState.getIsShippingInfoChangeable()) {
-      throw new IllegalStateException(
-          "can't chang shipping info because this status: " + orderState);
-    }
-
+    verifyNotYetShipped();
     this.shippingInfo = shippingInfo;
   }
 

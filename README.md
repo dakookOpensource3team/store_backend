@@ -321,3 +321,5 @@ public class DroolsRuleEngine implements CalculateRuleEngine{
 <img src="./img/module3.jpeg" alt="module3" style="zoom:30%;" />
 
 // 고려 사항: 카탈로그에도 Product가 포함되고 주문에도 Product가 포함되는데, 어떻게 가져가야 할지?
+
+### 3. 애그리거트
