@@ -1,12 +1,11 @@
 package com.example.ddd_start.application.service.order;
 
-경import com.example.ddd_start.application.model.order.ChangeOrderShippingInfoCommand;
 import com.example.ddd_start.application.model.order.ChangeOrderShippingInfoCommand;
 import com.example.ddd_start.domain.common.exception.NoOrderException;
 import com.example.ddd_start.domain.member.Member;
 import com.example.ddd_start.domain.member.MemberRepository;
-import com.example.ddd_start.domain.order.Orders;
 import com.example.ddd_start.domain.order.OrderRepository;
+import com.example.ddd_start.domain.order.Orders;
 import com.example.ddd_start.domain.order.value.ShippingInfo;
 import java.util.NoSuchElementException;
 import java.util.Optional;

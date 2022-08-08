@@ -53,6 +53,5 @@ public class OrderLine {
 
   private void changeProduct(Product product) {
     this.product_id = product.getId();
-    product.getOrderLines().add(this);
   }
 }

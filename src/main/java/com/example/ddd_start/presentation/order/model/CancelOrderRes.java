@@ -1,4 +1,4 @@
-package com.example.ddd_start.presentation.order;
+package com.example.ddd_start.presentation.order.model;
 
 import com.example.ddd_start.domain.common.Money;
 import com.example.ddd_start.domain.order.value.OrderState;
