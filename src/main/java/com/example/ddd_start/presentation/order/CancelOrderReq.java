@@ -1,4 +1,4 @@
-package com.example.ddd_start.application.model.order;
+package com.example.ddd_start.presentation.order;
 
 public class CancelOrderReq {
 
