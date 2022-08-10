@@ -8,6 +8,8 @@ import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -23,12 +25,15 @@ public class Product {
   @Embedded
   @AttributeOverride(name = "value", column = @Column(name = "price"))
   private Money price;
-
   private Long categoryId;
+  @ManyToOne
+  @JoinColumn(name = "store_id")
+  private Store store;
 
-  public Product(String name, Money price, Long categoryId) {
+  public Product(String name, Money price, Long categoryId, Store store) {
     this.name = name;
     this.price = new Money(price.getValue());
     this.categoryId = categoryId;
+    this.store = store;
   }
 }
