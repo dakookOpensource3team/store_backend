@@ -29,7 +29,7 @@ import lombok.Getter;
 
 @Entity(name = "orders")
 @Getter
-public class Order {
+public class Orders {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -45,7 +45,7 @@ public class Order {
           column = @Column(name = "receiver_phone_number"))
   })
   private ShippingInfo shippingInfo;
-  @OneToMany(mappedBy = "order", cascade = CascadeType.ALL)
+  @OneToMany(mappedBy = "orders", cascade = CascadeType.ALL)
   List<OrderLine> orderLines;
   @Embedded
   @AttributeOverride(name = "value", column = @Column(name = "total_amounts"))
@@ -99,11 +99,7 @@ public class Order {
   }
 
   public void changeShippingInfo(ShippingInfo shippingInfo) {
-    if (!orderState.getIsShippingInfoChangeable()) {
-      throw new IllegalStateException(
-          "can't chang shipping info because this status: " + orderState);
-    }
-
+    verifyNotYetShipped();
     this.shippingInfo = shippingInfo;
   }
 
@@ -139,5 +135,4 @@ public class Order {
       throw new IllegalStateException("이미 출고 됬습니다.");
     }
   }
-
 }

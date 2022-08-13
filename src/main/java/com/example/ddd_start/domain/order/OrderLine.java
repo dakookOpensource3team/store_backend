@@ -6,6 +6,7 @@ import javax.persistence.AttributeOverride;
 import javax.persistence.Column;
 import javax.persistence.Embedded;
 import javax.persistence.Entity;
+import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
@@ -22,12 +23,10 @@ public class OrderLine {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
-  @ManyToOne
-  @JoinColumn(name = "product_id")
-  private Product product;
-  @ManyToOne
+  private Long product_id;
+  @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "order_id")
-  private Order order;
+  private Orders orders;
   @Embedded
   @AttributeOverride(name = "value", column = @Column(name = "amount"))
   private Money amount;
@@ -36,9 +35,9 @@ public class OrderLine {
   private Money price;
   private Integer quantity;
 
-  public OrderLine(Product product, Order order, Integer quantity) {
+  public OrderLine(Product product, Orders orders, Integer quantity) {
     changeProduct(product);
-    changeOrder(order);
+    changeOrder(orders);
     this.price = product.getPrice();
     this.amount = calculateAmount();
     this.quantity = quantity;
@@ -48,13 +47,12 @@ public class OrderLine {
     return this.amount.multiply(quantity);
   }
 
-  private void changeOrder(Order order) {
-    this.order = order;
-    order.getOrderLines().add(this);
+  private void changeOrder(Orders orders) {
+    this.orders = orders;
+    orders.getOrderLines().add(this);
   }
 
   private void changeProduct(Product product) {
-    this.product = product;
-    product.getOrderLines().add(this);
+    this.product_id = product.getId();
   }
 }
