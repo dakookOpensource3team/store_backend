@@ -1,6 +1,7 @@
 package com.example.ddd_start.domain.product;
 
 import com.example.ddd_start.domain.common.Money;
+import com.example.ddd_start.domain.store.Store;
 import javax.persistence.AttributeOverride;
 import javax.persistence.Column;
 import javax.persistence.Embedded;

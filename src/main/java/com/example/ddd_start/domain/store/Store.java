@@ -1,11 +1,11 @@
-package com.example.ddd_start.domain.product;
+package com.example.ddd_start.domain.store;
 
-import static com.example.ddd_start.domain.product.StoreStatus.CLOSED;
+import static com.example.ddd_start.domain.store.StoreStatus.CLOSED;
 
 import com.example.ddd_start.domain.common.exception.StoreBlockedException;
-import java.util.ArrayList;
+import com.example.ddd_start.domain.product.Product;
+import com.example.ddd_start.domain.product.ProductInfo;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
