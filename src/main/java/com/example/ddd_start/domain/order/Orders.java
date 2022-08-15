@@ -1,6 +1,6 @@
 package com.example.ddd_start.domain.order;
 
-import static com.example.ddd_start.domain.order.value.OrderState.*;
+import static com.example.ddd_start.domain.order.value.OrderState.CANCEL;
 import static com.example.ddd_start.domain.order.value.OrderState.PAYMENT_WAITING;
 import static com.example.ddd_start.domain.order.value.OrderState.PREPARING;
 import static com.example.ddd_start.domain.order.value.OrderState.SHIPPED;
