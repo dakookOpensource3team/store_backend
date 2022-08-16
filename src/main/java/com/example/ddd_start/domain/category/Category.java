@@ -1,4 +1,4 @@
-package com.example.ddd_start.domain.product;
+package com.example.ddd_start.domain.category;
 
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;

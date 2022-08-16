@@ -952,13 +952,213 @@ public class MoneyConverter implements AttributeConverter<Money, Integer> {
       private ArticleContent articleContent;
       ~~~
 
-      
 
-​				
-
+    - 허나 게시글 목록을 보일 땐 Article만 보이면 되는데, @SeconderyTable을 사용하면 조인 해서 가져온다. 이럴 때는 밸류를 엔티티로 설정하고 지연 로딩 방식을 설정할 수 있다고 하는데, 책에서는 비추를 한다.
 
 
 
+#### 4.3.9 밸류 컬렉션을 @Entity로 매핑하기
+
+- 개념젹으로 밸류인데 구현 기술의 한계나 팀 표준에 의해 @Entity를 사용해야할 때가 있다.
+
+- JPA는 @Embeddable 타입의 클래스 상속 매핑을 지원하지 않는다.
+
+  ![repository5](./img/repository5.jpeg)
+
+  - 상속 구조를 갖는 밸류타입을 사용하려면 @Embeddable 대신 @Entity를 이용해서 상속 매핑으로 처리해야 한다.
+
+  - 밸류 타입을 @Entity로 매핑으로 식별자 매핑을 위한 필드도 추가해야 한다.
+
+    ![repository6](./img/repository6.jpeg)
+
+  - 한 테이블에 Image와 그 하위 클래스를 매핑하므로 Image 클래스에 다음 설정을 사용한다.
+
+    - @Inheritance 에너테이션 적용
+    - strategy 값으로 SINGLE_TABLE 사용
+    - @DiscriminatorColumn 애너테이션을 이용하여 타입 구분용으로 사용할 칼럼 지정
+
+  - 상위 클래스인 Image를 추상 클래스로 구현
+
+  ```java
+  @Entity
+  @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+  @DiscriminatorColumn(name = "image_type")
+  @NoArgsConstructor(access = AccessLevel.PROTECTED)
+  @Table(name = "image")
+  public abstract class Image {
+  
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "image_id")
+    Long id;
+  
+    @Column(name = "image_path")
+    private String path;
+  
+    @Temporal(TemporalType.TIMESTAMP)
+    private Instant uploadTime;
+  
+    public Image(String path, Instant uploadTime) {
+      this.path = path;
+      this.uploadTime = uploadTime;
+    }
+  
+    protected String getPath() {
+      return path;
+    }
+  
+    public Instant getUploadTime() {
+      return uploadTime;
+    }
+  
+    public abstract String getURL();
+  
+    public abstract boolean hasThumbnail();
+  
+    public abstract String getThumbnailURL();
+  }
+  ```
+
+  - Image를 상속받는 InternalImage와 ExternalImage를 구현하였다.
+
+  ```java
+  @Entity
+  @DiscriminatorValue("II")
+  @NoArgsConstructor
+  public class InternalImage extends Image {
+  
+    private String thumbnailURL;
+  
+    public InternalImage(String path, Instant uploadTime, String thumbnailURL) {
+      super(path, uploadTime);
+      this.thumbnailURL = thumbnailURL;
+    }
+  
+    @Override
+    public String getURL() {
+      return this.getURL();
+    }
+  
+    @Override
+    public boolean hasThumbnail() {
+      return thumbnailURL != null;
+    }
+  
+    @Override
+    public String getThumbnailURL() {
+      if (hasThumbnail()) {
+        return this.thumbnailURL;
+      }
+      throw new NoSuchElementException();
+    }
+  }
+  ```
+
+  ```java
+  @Entity
+  @DiscriminatorValue("DI")
+  @NoArgsConstructor
+  public class ExternalImage extends Image {
+  
+    private String thumbnailURL;
+  
+    public ExternalImage(String path, Instant uploadTime, String thumbnailURL) {
+      super(path, uploadTime);
+      this.thumbnailURL = thumbnailURL;
+    }
+  
+    @Override
+    public String getURL() {
+      return this.getPath();
+    }
+  
+    @Override
+    public boolean hasThumbnail() {
+      return thumbnailURL != null;
+    }
+  
+    @Override
+    public String getThumbnailURL() {
+      if (hasThumbnail()) {
+        return this.thumbnailURL;
+      }
+      throw new NoSuchElementException();
+    }
+  }
+  ```
+
+  - Image가 @Entity 이므로 목록을 담고 있는 Product는 @OneToMany를 이용해서 매핑을 처리하며, 상품이 저장될 때나 삭제될 때 영속성이 전이 되게 persist와 remove를 활성화 해주고, 상품이 삭제되면 이미지는 고아객체가 되므로 고아객체 제거를 허용하기 위해 orphanRemoval를 true로 설정해준다.
+
+    ```java
+    @Entity
+    @Getter
+    @NoArgsConstructor
+    public class Product {
+    	...
+    
+      @OneToMany(cascade = {CascadeType.PERSIST, CascadeType.REMOVE},
+          orphanRemoval = true,
+      mappedBy = "product")
+      private List<Image> images = new ArrayList<>();
+    
+      public void changeImages(List<Image> newImages) {
+        images.clear();
+        images.addAll(newImages);
+      }
+    }
+    ```
+
+  - @Entity의 List의 clear를 호출할 때 select쿼리로 대상 엔티티를 로딩하고, 각 개별 엔티티에 대해 delete 쿼리를 실행한다.
+
+    - 이미지가 4개라고 가정하면 상품 정보를 가져올 때 쿼리가 한번 호출되고, clear를 호출할 때 이미지 4개에 대한 쿼리가 각각 호출되어 성능에 문제가 생길 수 있다.
+
+  - 대신 @Embeddable 타입에 대한 컬렉션의 clear() 메서드를 호출하면 컬렉션에 속한 객체를 로딩하지 않고 한번의 delete 쿼리로 삭제처리를 수행한다.
+
+    - 따라서 애그리거트의 특성을 유지하면서 이문제를 해소하려면 결국 상속을 포기하고 @Embeddable로 매핑된 단일 클래스로 구현해야 한다.
+
+    - 예시
+
+      ~~~
+      @Embeddable
+      public class Image{
+      	private String imageType;
+      	private String path;
+      	@Temporal(TemporalType.TIMESTAMP)
+      	private Instant uploadTime;
+      	
+      	public boolean hasThumbnail(){
+      		return this.imageType.equals("II");
+      	}
+      }
+      ~~~
+
+    - 코드 유지보수와 성능의 두가지 측면을 고려해서 구현방식을 선택해야 한다.
 
 
 
+#### 4.3.10 ID참조와 조인 테이블을 이용한 단방향 M-N 매핑
+
+- 애그리거트 간 집합 연관은 성능 상의 이유로 피해야한다.
+
+  - 그럼에도 불구하고 유구사항을 구현하는데 집합 연관을 사용하는 것이 유리하다면 ID 참조를 이용한 단방향 집합 연관을 적용해 볼 수 있다.
+
+    ~~~java
+    @Entity
+    public class Product {
+    	@Id
+      @GeneratedValue(strategy = GenerationType.IDENTITY)
+    	private Long id;
+    	
+    	@ElementCollection
+    	@CollectionTable(name = "product_category", 
+    	joinColumns = @JoinColumn(name = "product_id"))
+    	private Set<CategoryId> categoryIds;
+    }
+    ~~~
+
+    - 위 코드는 Product에서 Category로 단방향 M-N 연관을 ID 참조 방식으로 구현한 것이다.
+    - ID 참조를 이용한 애그리거트 간 단방향 M-N 연관은 밸류 컬렉션 매핑과 동일한 방식으로 설정되었다.
+    - 차이점이 있다면 집합의 값에 밸류 대신 연관을 맺는 식별자가 온다.
+    - @ElementCollection을 이용하기 때문에 Product를 삭제할 때 매핑에 사용한 조인테이블의 데이터도 함께 삭제된다.
+
+#### 4.4 애그리거트 로딩 전략
