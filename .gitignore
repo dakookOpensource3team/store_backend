@@ -37,4 +37,4 @@ out/
 .vscode/
 
 ### docker ###
-./docker/mysql/
+/docker/mysql/
