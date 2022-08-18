@@ -16,6 +16,7 @@ import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.CreatedDate;
 
 @Entity
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
@@ -32,7 +33,7 @@ public abstract class Image {
   @Column(name = "image_path")
   private String path;
 
-  @Temporal(TemporalType.TIMESTAMP)
+  @CreatedDate
   private Instant uploadTime;
 
   @ManyToOne

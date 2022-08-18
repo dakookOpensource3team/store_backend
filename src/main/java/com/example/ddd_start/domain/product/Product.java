@@ -6,15 +6,19 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.persistence.AttributeOverride;
 import javax.persistence.CascadeType;
+import javax.persistence.CollectionTable;
 import javax.persistence.Column;
+import javax.persistence.ElementCollection;
 import javax.persistence.Embedded;
 import javax.persistence.Entity;
+import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
+import javax.persistence.OrderColumn;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -35,6 +39,16 @@ public class Product {
   @JoinColumn(name = "store_id")
   private Store store;
 
+  @ElementCollection(fetch = FetchType.LAZY)
+  @CollectionTable(name = "prodcut_option",
+      joinColumns = @JoinColumn(name = "product_id"))
+  @OrderColumn(name = "list_idx")
+  private List<Option> options = new ArrayList<>();
+  @OneToMany(cascade = {CascadeType.PERSIST, CascadeType.REMOVE},
+      orphanRemoval = true, mappedBy = "product")
+  @OrderColumn(name = "list_idx")
+  private List<Image> images = new ArrayList<>();
+
   public Product(String name, Money price, Long categoryId, Store store) {
     this.name = name;
     this.price = new Money(price.getValue());
@@ -42,13 +56,12 @@ public class Product {
     this.store = store;
   }
 
-  @OneToMany(cascade = {CascadeType.PERSIST, CascadeType.REMOVE},
-      orphanRemoval = true,
-  mappedBy = "product")
-  private List<Image> images = new ArrayList<>();
-
   public void changeImages(List<Image> newImages) {
     images.clear();
     images.addAll(newImages);
+  }
+
+  public void removeOption(int optionIdx) {
+    this.options.remove(optionIdx);
   }
 }

@@ -995,26 +995,27 @@ public class MoneyConverter implements AttributeConverter<Money, Integer> {
     @Column(name = "image_path")
     private String path;
   
-    @Temporal(TemporalType.TIMESTAMP)
+
+//    @Temporal(TemporalType.TIMESTAMP)
     private Instant uploadTime;
-  
+
     public Image(String path, Instant uploadTime) {
       this.path = path;
       this.uploadTime = uploadTime;
     }
-  
+      
     protected String getPath() {
       return path;
     }
-  
+      
     public Instant getUploadTime() {
       return uploadTime;
     }
-  
+      
     public abstract String getURL();
-  
+      
     public abstract boolean hasThumbnail();
-  
+      
     public abstract String getThumbnailURL();
   }
   ```
@@ -1161,4 +1162,126 @@ public class MoneyConverter implements AttributeConverter<Money, Integer> {
     - 차이점이 있다면 집합의 값에 밸류 대신 연관을 맺는 식별자가 온다.
     - @ElementCollection을 이용하기 때문에 Product를 삭제할 때 매핑에 사용한 조인테이블의 데이터도 함께 삭제된다.
 
+
+
 #### 4.4 애그리거트 로딩 전략
+
+- 매핑을 설정할 때 애그리거트에 속한 객체가 모두 모여야 완전한 하나가 된다.
+  - 애그리거트 루트를 로딩하면 루트에 속한 모든 객체가 완전한 상태여야 함을 의미한다.
+
+- 조회 시점에서 애그리거트를 완전한 상태가 되도록 하면 즉시로딩을 하면 된다.
+  - @ManyToOne(fetch = FetchType.EAGER)
+  - 즉시 로딩 방식을 설정하면 애그리거트 루트를 로딩하는 시점에 모두 로딩할 수 있어 좋지만 장점만 있지 않다.
+    - 예상치 못한 쿼리가 발생할 수 있다.
+    - 예를 들자면 @OneToMany가 걸려있는 연관관계의 데이터를 즉시 가져올 때 카타시안 조인이 발생하면서 객체의 개수가 많으면 쿼리의 개수가 객체수 만큼 곱해진다. (상품 1개, 이미지 10개, 옵션 10개 = 1 * 10 * 10 = 100)
+    - 이렇듯 데이터의 개수가 많아지면 성능(실행 빈도, 트래픽, 지연 로딩시 실행속도 등)을 검토해봐야 한다.
+
+- 애그리거트는 개념적으로 하나여야 한다. 하지만 루트 엔티티를 로딩하는 시점에 애그리거트에 속한 객체 모두를 로딩해야 하는 것은 아니다.
+
+  - 애그리거트가 완전해야 하는 이유
+
+    - 상태를 변경하는 기능을 실행할 때 애그리거트 상태가 완전해야한다.
+    - 표현 영역에서 애그리거트의 상태 정보를 보여줄 때 필요하다.
+      - 별도의 조회 전용 기능과 모델을 구현하는 방식(VO?, DTO?)을 사용하는 것이 더 유리하다.
+
+  - 애그리거트의 완전한 로딩과 관련된 문제는 상태변경과 더 관련이 있다. 
+
+  - 상태변경 기능을 실행하기 위해서는 완전한 로딩 상태가 필요없다. 왜냐하면 JPA는 트랜잭션 범위 내에서 지연 로딩을 허용한다.
+
+    ~~~java
+    @Service
+    @RequiredArgsConstructor
+    public class DeleteProductService {
+    
+      private final ProductRepository productRepository;
+    
+      public void removeOptions(Long productId, int optIdx) {
+        //Option은 LAZY로 즉시 로딩 안됨.
+        Product product = productRepository.findById(productId)
+            .orElseThrow(NoSuchElementException::new);
+        //여기서 지연로딩이 된다.
+        product.removeOption(optIdx);
+      }
+    }
+    ~~~
+
+  - 지연로딩의 장점은 동장 방식이 항상 동일하기 때문에 경우의 수를 따질 필요가 없다.
+
+  - 지연 로딩은 즉시로딩보다 쿼리 실행횟수가 많아질 가능성이 더 높다(N+1) -> 이럴 땐 fetchJoin을 해서 즉시로딩 하면 되는데, 보통 성능을 튜닝 할 때는 지연로딩으로 설정하고 튜닝을 진행한다.
+
+  - 각 상황에 알맞게 로딩방식을 사용하면 될 것 같다.
+
+
+
+#### 4.5 애그리거트 영속성 전파
+
+- 애그리거트가 완전한 상태여야 한다는 것은 애그리거트를 조회할 때 뿐 아니라 저장 및 삭제할 때도 하나로 처리해야함을 의미한다.
+  - 저장 메서드는 애그리거트 루트 포함 애그리거트에 속해있는 모든 객체가 저장되어야 한다.
+  - 삭제 메서드는 애그리거트 루트 포함 애그리거트에 속해있는 모든 객체가 삭제되어야 한다.
+- @Embeddable 매핑 타입은 함께 저장되고 삭제되므로 cascde 설정을 하지 않아도 된다.
+- 반면에 @Entity 타입에 대한 매핑은 cascade를 통해 영속성 전파를 설정해줘야 한다.
+  - CascadeType.PERSIST(저장), CascadeType.REMOVE(삭제)
+  - orphanRemoval = true -> true이면 고아객체도 삭제한다를 의미
+
+
+
+#### 4.6 식별자 생성 기능
+
+- 식별자는 크게 세가지 방식중 하나로 생성한다.
+  - 사용자가 직접 생성 (이메일 주소)
+  - 도메인 로직으로 생성 (orderNumber)
+  - DB를 이용한 일련번호 사용(오토 인크리먼트, (오라클, 포스트그레) - 시퀀스)
+
+- 식별자 생성 규칙이 있다면 엔티티를 생성은 도메인 규칙이므로 별도의 도메인 서비스로 분리한다.
+  - 특정값을 조합하는 식별자도 포함된다 -> orderNumber 또는 날짜를 조합해서 만드는 번호 등
+  - 식별자 생성 규칙을 구현하기에 적합한 또 다른 장소는 레포지토리이다.
+    - 레포지토리 인터페이스에 식별자를 생성하는 메서드를 추가하고 리포지토리 구현 클래스에 알맞게 구현하면된다.(Spring Data JPA를 사용하면 딱히 쓸일은 없을 것 같다.)
+  - DB 자동 증가 칼럼은 @GeneratedValue(strategy = GenerationType.IDENTITY(오토 인크리먼트), GenerationType.SEQUENCE(시퀀스))
+    - 자동 증가 컬럼은 식별자를 DB insert 쿼리를 실행할 때 생성되므로 레포지토리에 객체를 저장이후에 알 수 있다.
+
+
+
+#### 4.7 도메인 구현과 DIP
+
+- 이장에서 구현된 리포지토리는 DIP 원칙을 어기고 있다.
+
+  - 엔티티에서는 구현기술인 JPA에 특화된 @Entity, @Table, @Id, @Column등의 애너테이션을 사용한다.
+
+  - DIP에 따르면 @Entity, @Table은 구현기술에 속하므로 도메인 모델은 구현모델인 JPA에 의존하지 말아야 한다.
+
+  - Repository 인터페이스도 JPA의 구현기술인 JpaRepository를 상속받는다. 
+
+  - 구현 기술에 의존 없이 도메인을 순수하게 유지하려면 아래의 그림과 같이 구현해야 한다.
+
+    ![](./img/repository7.jpeg)
+
+  - 위의 사진의 구조처럼 구현한다면 도메인이 받는 영향을 최소화 할 수 있다.
+  - DIP를 적용하는 주된 이유는 저수준 구현이 변경되더라도 고수준이 영향을 받지 않도록 하기 위함이다. 하지만 레포지토리와 도메인 모델의 구현기술은 거의 바뀌지 않는다.
+  - 개발의 편의성과 실용성을 가져가기 위해 기술에 따른 구현 제약이 낮다면 합리적인 선택이 될 수 있다.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
