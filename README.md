@@ -729,7 +729,7 @@ public class DroolsRuleEngine implements CalculateRuleEngine{
 
   > 책에서는 Orderer의 memberId를 orderer_id로 설정하고 Member의 Id를 orderer_id로 했으나, 나는 그렇게 까지 바꿀 필요성이 있나라는 생각이 들어서 책과 같이 구현하지 않았다. Orderer의 meberId를 orderer_id로 바꾸는 것 까지는 가능하다고 생각한, Member는 회원정보등이 포함되어있는데, 단순히 orderer_id라고 하기에는 의미가 애매해서 그렇게 결정했다.
 
-   - Order의는 ShippingInfo 밸류의 Receuver 밸류의 name, phone_number 컬럼의 의미 전달을 위해 @AttributeOverride를 통해 컬럼이름을 커스터마이징 해주었다.
+   - Order의는 ShippingInfo 밸류의 Receiver 밸류의 name, phone_number 컬럼의 의미 전달을 위해 @AttributeOverride를 통해 컬럼이름을 커스터마이징 해주었다.
 
      ~~~java
      @Entity(name = "orders")
@@ -842,9 +842,9 @@ public class MoneyConverter implements AttributeConverter<Money, Integer> {
 
 > 이패키지가 인프라스트럭쳐에 있는 것이 맞는것인가?? 특정 기술에 대한 구현체여서 맞는것 같기도 하고, 또 도메인에만 종속되서 아닌 것 같기도 하다.
 
-- AttributeConverter 인터페이스를 구현한 클래스는 @Converter 애너테이션을 저굥ㅇ한다.
+- AttributeConverter 인터페이스를 구현한 클래스는 @Converter 애너테이션을 적용한다.
 
-- AutoApply 속성값을 보면 이 속성이 ture로 지정하면 모델에 출현하는 모든 Money 타입의 프로퍼티에 대해 MoneyConverter를 자동으로 적용한다.
+- AutoApply 속성값을 보면 이 속성이 true로 지정하면 모델에 출현하는 모든 Money 타입의 프로퍼티에 대해 MoneyConverter를 자동으로 적용한다.
 
   - 예) Order의 Money
 
@@ -906,7 +906,7 @@ public class MoneyConverter implements AttributeConverter<Money, Integer> {
   - 밸류 타입으로 식별자를 구현할 때 얻을 수 있는 장점은 실벼자에 기능을 추가할 수 있다는 점이다.
 
     - 예시
-    - 1시데 스템과 2세대 시스템의 주문번호를 구분할 때 주문번호의 첫글자를 이용할 경우
+    - 1세데 시스템과 2세대 시스템의 주문번호를 구분할 때 주문번호의 첫글자를 이용할 경우
 
 
 
@@ -924,7 +924,7 @@ public class MoneyConverter implements AttributeConverter<Money, Integer> {
 
     - 하지만 Product와 Reivew는 함께 생성되지 않고 함께 변경되지도 않는다.
     - 또한 두개의 객체를 생성하는 주체가 Product = 상점, Review = 고객으로 다르다.
-    - 그러므로 Review는 엔티티가 맞지만 리그 애그리거트에 속한 엔티티이지 상품에 속한 엔티티가 아니다.
+    - 그러므로 Review는 엔티티가 맞지만 리뷰 애그리거트에 속한 엔티티이지 상품에 속한 엔티티가 아니다.
 
   - 애그리거트에 속한 객체가 밸류인지 엔티티인지 구분하는 방법은 고유 식별자는 갖는지 확인하는 것이다.
 
@@ -945,11 +945,15 @@ public class MoneyConverter implements AttributeConverter<Money, Integer> {
     - @AttriubuteOverride를 이용하여 해당 밸류 데이터가 저장될 테이블 이름을 지정하면 된다.
 
       ~~~java
+      @SecondaryTable(name ="밸류를 저장할 테이블 이름")
+      public class Atricle{
+      
       @Embedded
       @AttriubuteOverride(
       name = "content",
       column = @Column(table = "article_content", name = "content"))
       private ArticleContent articleContent;
+      }
       ~~~
 
 
@@ -994,10 +998,10 @@ public class MoneyConverter implements AttributeConverter<Money, Integer> {
   
     @Column(name = "image_path")
     private String path;
-  
-
-//    @Temporal(TemporalType.TIMESTAMP)
-    private Instant uploadTime;
+    
+  	@Temporal(TemporalType.TIMESTAMP)
+      private Instant uploadTime;
+  ```
 
     public Image(String path, Instant uploadTime) {
       this.path = path;
@@ -1017,11 +1021,12 @@ public class MoneyConverter implements AttributeConverter<Money, Integer> {
     public abstract boolean hasThumbnail();
       
     public abstract String getThumbnailURL();
-  }
+     - Image를 상속받는 InternalImage와 ExternalImage를 구현하였다.
+    
+      }
   ```
 
-  - Image를 상속받는 InternalImage와 ExternalImage를 구현하였다.
-
+ 
   ```java
   @Entity
   @DiscriminatorValue("II")
@@ -1141,7 +1146,7 @@ public class MoneyConverter implements AttributeConverter<Money, Integer> {
 
 - 애그리거트 간 집합 연관은 성능 상의 이유로 피해야한다.
 
-  - 그럼에도 불구하고 유구사항을 구현하는데 집합 연관을 사용하는 것이 유리하다면 ID 참조를 이용한 단방향 집합 연관을 적용해 볼 수 있다.
+  - 그럼에도 불구하고 요구사항을 구현하는데 집합 연관을 사용하는 것이 유리하다면 ID 참조를 이용한 단방향 집합 연관을 적용해 볼 수 있다.
 
     ~~~java
     @Entity
@@ -1205,7 +1210,7 @@ public class MoneyConverter implements AttributeConverter<Money, Integer> {
     }
     ~~~
 
-  - 지연로딩의 장점은 동장 방식이 항상 동일하기 때문에 경우의 수를 따질 필요가 없다.
+  - 지연로딩의 장점은 동작 방식이 항상 동일하기 때문에 경우의 수를 따질 필요가 없다.
 
   - 지연 로딩은 즉시로딩보다 쿼리 실행횟수가 많아질 가능성이 더 높다(N+1) -> 이럴 땐 fetchJoin을 해서 즉시로딩 하면 되는데, 보통 성능을 튜닝 할 때는 지연로딩으로 설정하고 튜닝을 진행한다.
 
@@ -1231,7 +1236,6 @@ public class MoneyConverter implements AttributeConverter<Money, Integer> {
   - 사용자가 직접 생성 (이메일 주소)
   - 도메인 로직으로 생성 (orderNumber)
   - DB를 이용한 일련번호 사용(오토 인크리먼트, (오라클, 포스트그레) - 시퀀스)
-
 - 식별자 생성 규칙이 있다면 엔티티를 생성은 도메인 규칙이므로 별도의 도메인 서비스로 분리한다.
   - 특정값을 조합하는 식별자도 포함된다 -> orderNumber 또는 날짜를 조합해서 만드는 번호 등
   - 식별자 생성 규칙을 구현하기에 적합한 또 다른 장소는 레포지토리이다.
