@@ -1,6 +1,6 @@
 package com.example.ddd_start.domain.order;
 
-import static com.example.ddd_start.domain.order.value.OrderState.*;
+import static com.example.ddd_start.domain.order.value.OrderState.CANCEL;
 import static com.example.ddd_start.domain.order.value.OrderState.PAYMENT_WAITING;
 import static com.example.ddd_start.domain.order.value.OrderState.PREPARING;
 import static com.example.ddd_start.domain.order.value.OrderState.SHIPPED;
@@ -26,8 +26,10 @@ import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.OneToMany;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Entity(name = "orders")
+@NoArgsConstructor
 @Getter
 public class Orders {
 
@@ -48,7 +50,7 @@ public class Orders {
   @OneToMany(mappedBy = "orders", cascade = CascadeType.ALL)
   List<OrderLine> orderLines;
   @Embedded
-  @AttributeOverride(name = "value", column = @Column(name = "total_amounts"))
+  @AttributeOverride(name = "amount", column = @Column(name = "total_amounts"))
   private Money totalAmounts;
   @Embedded
   private Orderer orderer;
@@ -94,7 +96,7 @@ public class Orders {
 
   private Money calculateTotalAmounts() {
     return new Money(this.orderLines.stream()
-            .mapToInt(o -> o.getAmount().getValue())
+            .mapToInt(o -> o.getAmount().getAmount())
             .sum());
   }
 

@@ -445,7 +445,7 @@ public class DroolsRuleEngine implements CalculateRuleEngine{
 
 
 
-### 3.3 리포지토리와 애그리거트
+#### 3.3 리포지토리와 애그리거트
 
 - 애그리거트는 개념적으로 하나이므로 레포지토리는 애그리거트 전체를 저장소에 영속화 해야한다.
 
@@ -462,7 +462,7 @@ public class DroolsRuleEngine implements CalculateRuleEngine{
 
 
 
-### 3.4 ID를 이용한 애그리거트 참조
+#### 3.4 ID를 이용한 애그리거트 참조
 
 - ORM을 통해 애그리거트간의 참조는 필트들 통해 쉽게 구현할 수 있다. 
   - 예를 들어 주문 애그리거트에 속해있는 Orderer는 주문의 회원을 참조하기 위해 Member를 필드로 참조할 수 있다.
@@ -510,7 +510,7 @@ public class DroolsRuleEngine implements CalculateRuleEngine{
 
 
 
-### 3.5 애그리거트 간 집합 연관
+#### 3.5 애그리거트 간 집합 연관
 
 - 애그리거트 간 1-N과 M-N 연관이 존재한다.
   - 연관관계를 맺을 때, 1-N 연관이 있더라도 1에 속해있는 N의 데이터가 수만개 수준으로 많다면 이 코드를 실행할 때마다 실행속도가 급격히 느려져 성능에 심각한 문제를 일으킬 수 있다.
@@ -518,7 +518,7 @@ public class DroolsRuleEngine implements CalculateRuleEngine{
 
 
 
-### 3.6 애그리거트를 팩토리로 사용하기
+#### 3.6 애그리거트를 팩토리로 사용하기
 
 - 고객이 특정 상점을 여러 차례 신고해서 해당 상점이 더 이상 물건을 등록하지 못하도록 차단한 상태라고 해보자.
 
@@ -549,7 +549,7 @@ public class DroolsRuleEngine implements CalculateRuleEngine{
     if (isStoreBlocked()) {
       throw new StoreBlockedException();
     }
-    Product product = new Product(productInfo.getName(), productInfo.getPrice(),
+    Product product = new Product(productInfo.getName(), productInfo.getAmount(),
         productInfo.getCategoryId(), this);
     products.add(product);
     return product;
@@ -560,3 +560,732 @@ public class DroolsRuleEngine implements CalculateRuleEngine{
   - 팩토리 기능을 구현했으므로, 응용서비스에서는 해당 함수만 호출하여 상품을 생성하면된다.
 
 - 영철님의 설명을 듣고, 난 위의 기능 보다는 도메인 서비스에서 그냥 조합해서 생성하는 것도 좋은 방향이라고 생각하지만, 나중에 실무를 진행하면서 기회가 있다면 위와 같이 한번 시도를 해보고, PR의 리뷰를 맡기겠다.... :)
+
+
+
+### 4. 레포지토리 모델구현
+
+#### 4.1 JPA를 이용한 레포지토리 구현
+
+- 애그리거트를 어떤 저장소에 저장햐느냐에 따라 레포지토리를 구현하는 방법이 다르다.
+  - 나는 이번장을 쌩 JPA가 아닌 Spring data jpa를 이용해 구현을 진행할 것이다.
+
+
+
+#### 4.1.1 모듈 위치
+
+- 레포지토리 인터페이스는 애그리거트와 같이 도메인 영역에 속하고, 리포지토리를 구현한 클래스는 인프라스트럭처 영역에 속한다.
+
+  ![](./img/repository1.jpeg)
+
+- Spring Data JPA는 JpaRepository<Entity, Id>를 extends하면, 자동으로 구현 객체를 생성해준다.
+
+
+
+#### 4.1.2 레포지토리
+
+- 레포티조티라 제공하는 기본기능은 다음 두가지이다.
+  - ID로 애그리거트 조회하기
+  - 애그리거트 저장하기
+
+- 레포지토리 인터페이스는 애그리거트 루트를 기준으로 작성한다.
+  - 예를 들면 주문 애그리거트는 Order인 루트 엔티티의 레포지토리만 생성한다.
+    - 다른 내부 엔티티인 OrderLine, Orderer, ShippingInfo등의 객체애 대해서는 생성하지 않는다.
+  - Spring Data JPA는 `ID로 조회, 저장, 삭제` 기능을 모두 제공한다.
+
+- JPA를 사용하면 수정한 결과를 저장소에 반영하는 메서드를 추가할 필요가 없다.
+
+  - JPA는 트랜잭션 범위에서 변경한 데이터를 자동으로 DB에 반영한다 -> 더티 체킹
+
+    ~~~java
+    @Transactional
+      public void changeShippingInfo(ChangeOrderShippingInfoCommand changeOrderShippingInfoCommand) {
+        Optional<Orders> optionalOrder = orderRepository.findById(
+            changeOrderShippingInfoCommand.getOrderId());
+        Orders orders = optionalOrder.orElseThrow(NoOrderException::new);
+        ShippingInfo newShippingInfo = changeOrderShippingInfoCommand.getShippingInfo();
+        orders.changeShippingInfo(newShippingInfo);
+    
+        if (changeOrderShippingInfoCommand.isUseNewShippingAddressAsMemberAddress()) {
+          Optional<Member> optionalMember = memberRepository.findById(orders.getOrderer().getMemberId());
+          Member member = optionalMember.orElseThrow(NoSuchElementException::new);
+          member.changeAddress(newShippingInfo.getAddress());
+        }
+      } //메서드가 끝날때 commit을 하면서 더티체킹하여 Update쿼리가 자동으로 반영된다.
+    ~~~
+
+- JPA는 ID가 아닌 다른 조건으로 검색할 때, findBy프로퍼티로 조회할 수 있다.
+
+  ~~~java
+  public interface OrderRepository extends JpaRepository<Orders, Long> {
+  	List<Orders> findByOrdererId(Long ordererId);
+  }
+  ~~~
+
+  - ID외에 다른조건으로 애그리거트를 조회할 떄 JPA Crietria(비추)나, JPQL 또는 QueryDsl을 사용할 수 있다.
+
+>  Tip. 삭제 기능
+>
+> 삭제 요구사항이 있더라도 데이터를 실제 삭제하는 경우는 많지 않다. 관리자 기능에서 삭제한 데이터를 조회해야 하는 경우도 있고, 데이터 원복을 위해 일정기간동안 보관해야할 때도 있기 때문이다. 이런경우에는 삭제플래그를 두어 사용자에게 해당 데이터를 보여주지 않는다.
+
+
+
+#### 4.2 스프링 데이터 JPA를 이용한 레포지토리 구현
+
+- 4.1에서 설명한바와 같이 스프링 데이터 JPA는 지정한 규칙에 맞게 레포지토리 인터페이스를 정의하면 레포지토리를 구현한 객체를 알아서 만들어 스프링 빈으로 등록해준다.
+
+- 스프링 데이터 JPA는 다음 규칙에 따라 작성한 인터페이스를 찾아서 인터페이스를 구현한 스프링 빈 객체를 자동으로 등록한다.
+
+  - org.springframework.data.jpa.repository<T, ID>
+  - T는 엔티티 타입을 지정하고, ID는 식별자 타입을 지정한다.
+
+    - 예) Order 엔티티를 위한 OrderRepository
+
+      ~~~java
+      //엔티티
+      @Entity(name = "orders")
+      @Getter
+      public class Orders {
+      
+        @Id
+        @GeneratedValue(strategy = GenerationType.IDENTITY)
+        private Long id;
+        private String orderNumber;
+        @Enumerated(value = EnumType.STRING)
+        private OrderState orderState;
+        @Embedded
+        @AttributeOverrides({
+            @AttributeOverride(name = "receiver.name",
+                column = @Column(name = "receiver_name")),
+            @AttributeOverride(name = "receiver.phoneNumber",
+                column = @Column(name = "receiver_phone_number"))
+        })
+        private ShippingInfo shippingInfo;
+        @OneToMany(mappedBy = "orders", cascade = CascadeType.ALL)
+        List<OrderLine> orderLines;
+        @Embedded
+        @AttributeOverride(name = "value", column = @Column(name = "total_amounts"))
+        private Money totalAmounts;
+        @Embedded
+        private Orderer orderer;
+      	
+        ....
+      }
+      
+      ===================================================
+      
+      //레포지토리
+      public interface OrderRepository extends JpaRepository<Orders, Long> {
+      	List<Orders> findByOrdererId(Long ordererId);
+      }
+      ~~~
+
+      
+
+#### 4.3 매핑 구현
+
+#### 4.3.1 엔티티와 밸류 기본 매핑 구현
+
+- 애그리거트와 JPA 매핑을 위한 기본 규칙은 다음과 같다.
+  - 애그리거트 루트는 엔티티이므로 @Entity로 매핑 설정한다.
+- 한 테이블에 엔티티와 밸류 데이터가 같이 있다면
+  - 밸류는 @Embeddable로 매핑 설정한다.
+  - 밸류 타입 프로퍼티는 @Embedded로 매핑 설정한다.
+
+- 주문 애그리거트를 예로 들어보자면 루트 엔티티는 Order이고, 이 애그리거트에 속한 Orderer, Money, ShippingInfo는 밸류이다.
+
+  - 루트 엔티티와 루트 엔티티에 속한 밸류는 한테이블에 매핑할 때가 많다.
+
+  <img src="./img/repository2.jpeg" alt="repository2" style="zoom:40%;" />
+
+  - 주문 애그리거트에서 루트 엔티티인 Order는 @Entity로 매핑한다.
+
+  ~~~java
+  //엔티티
+  @Entity(name = "orders")
+  @Getter
+  public class Orders {
+  ...
+  }
+  ~~~
+
+  - Order에 속하는 Orderer는 밸류이므로 @Embeddable로 매핑한다.
+
+  ~~~java
+  @Getter
+  @Embeddable
+  @AllArgsConstructor
+  @NoArgsConstructor
+  public class Orderer {
+  
+    private Long memberId;
+    private String name;
+    private String phoneNumber;
+    private String email;
+  }
+  ~~~
+
+  - Orderder의 MemberId는 Member 애그리거트를 id로 참조한다.
+
+  > 책에서는 Orderer의 memberId를 orderer_id로 설정하고 Member의 Id를 orderer_id로 했으나, 나는 그렇게 까지 바꿀 필요성이 있나라는 생각이 들어서 책과 같이 구현하지 않았다. Orderer의 meberId를 orderer_id로 바꾸는 것 까지는 가능하다고 생각한, Member는 회원정보등이 포함되어있는데, 단순히 orderer_id라고 하기에는 의미가 애매해서 그렇게 결정했다.
+
+   - Order의는 ShippingInfo 밸류의 Receiver 밸류의 name, phone_number 컬럼의 의미 전달을 위해 @AttributeOverride를 통해 컬럼이름을 커스터마이징 해주었다.
+
+     ~~~java
+     @Entity(name = "orders")
+     @Getter
+     public class Orders { 
+       //...
+       @Embedded
+       @AttributeOverrides({
+           @AttributeOverride(name = "receiver.name",
+               column = @Column(name = "receiver_name")),
+           @AttributeOverride(name = "receiver.phoneNumber",
+               column = @Column(name = "receiver_phone_number"))
+       })
+       private ShippingInfo shippingInfo;
+     }
+     ~~~
+
+
+
+#### 4.3.2 기본 생성자
+
+- 엔티티와 밸류의 생성자는 객체를 생성할 때 필요한 것을 전달받는다.
+
+  - 예를 들면 Receiver 밸류 타입은 생성시점에 수취인 이름과 전화번호를 생성자 파라미터로 전달받는다.
+
+    ~~~java
+    @AllArgsConstructor //lombok을 이용한 모든 파라미터를 받는 생성자
+    @NoArgsConstructor //lombok을 이용한 기본 생성자
+    public class Receiver {
+      private String name;
+      private String phoneNumber;
+    }
+    ~~~
+
+  - Receiver가 불변 타입이면 생성 시점에 필요한 값을 모두 전달받으므로 값을 변경하는 set 메서드를 제공하지 않는다.
+  - 하지만 JPA에서 @Entity와 @Embeddable로 클래스를 매핑하려면 기본 생성자를 제공해야한다.
+    - DB에서 데이터를 읽어와 매핑된 객체를 생성할 때 기본생성자를 사용해서 객채를 생성하기 때문이다.
+
+
+
+#### 4.3.3 필드 접근 방식 사용
+
+- JPA는 필드와 메서드의 두가지 방식으로 매핑을 처리할 수 있다. 메서드 방식을 사용하려면 프로퍼티를 위한 get/set 메서드를 구현해야한다.
+  - 엔티티에 프로퍼티를 위한 공개 get/set 메서드를 추가하면 도메인의 의도가 사라지고 객체가 아닌 데이터 기반으로 엔티티를 구현할 가능성이 높아진다. 
+  - 특히 set 메서드는 내부 데이터를 외부에서 변경할 수 있는 수단이 되기 때문에 캡슐화를 깨는 원인이 될 수 있다.
+  - 엔티티가 객체로서 제 역할을 하려면 외부에서 set 메서드 대신 의도가 잘 드러나는 기능을 제공한다.
+    - 예를 들면 setShippingInfo() 보단 배송지를 변경한다는 의미의 changeShippinInfo가 더 알맞을 것이다.
+
+
+
+#### 4.3.4 AttributeConverter를 이용한 밸류 매핑 처리
+
+- Int, long, String, LocalDate와 같은 타입은 DB 테이블의 한 개 칼럼에 매핑된다. 이와 비슷하게 밸류 타입의 프로퍼티를 한 개 컬럼에 매핑해야할 때도 있다.
+
+  - 예를 들면 Money가 돈의 값과 통화라는 두 프로퍼티를 갖고 있는데 DB 테이블에 한 개 컬럼에 "1000₩, 1000$" 와 같은 형식을 저장할 수 있다.
+
+    ~~~java
+    public class Money {
+    	private int amount;
+    	private String currency;
+    }
+    
+    // DB 저장시 "1000₩, 1000$"로 저장 -> money varchar(20)
+    ~~~
+
+  - 두개 이상의 프로퍼티를 가진 밸류 타입을 한 개 컬럼에 매핑하려면 @Embeddable 애노테이션으로 처리할 수 없다. 이럴 때 사용하는 것이 AttributeConverter이다.
+
+- AttributeConverter는 다음과 같이 밸류 타입과 컬럼 데이터간의 변환을 처리하기 위한 기능을 정의하고 있다.
+
+```
+package javax.persistence;
+
+public interface AttributeConverter<X,Y> {
+
+
+    public Y convertToDatabaseColumn (X attribute);
+
+
+    public X convertToEntityAttribute (Y dbData);
+}
+```
+
+- 타입 파라미터 X는 벨류타입이고, Y는 DB 타입이다. 
+  - convertToDatabaseColumn() 메서드는 밸류 타입을 DB 컬럼 값으로 변환하는 기능을 구현한다.
+  - convertToEntityAttribute() 메서드는 DB 컬럼값을 밸류 타입으로 변환하는 기능을 구현한다.
+
+
+
+```java
+package com.example.ddd_start.infrastructure.money.moeny_converter;
+
+import com.example.ddd_start.domain.common.Money;
+import javax.persistence.AttributeConverter;
+import javax.persistence.Converter;
+
+@Converter(autoApply = ture)
+public class MoneyConverter implements AttributeConverter<Money, Integer> {
+
+  @Override
+  public Integer convertToDatabaseColumn(Money money) {
+    return money == null ? null : money.getValue();
+  }
+
+  @Override
+  public Money convertToEntityAttribute(Integer value) {
+    return value == null ? null : new Money(value);
+  }
+}
+```
+
+> 이패키지가 인프라스트럭쳐에 있는 것이 맞는것인가?? 특정 기술에 대한 구현체여서 맞는것 같기도 하고, 또 도메인에만 종속되서 아닌 것 같기도 하다.
+
+- AttributeConverter 인터페이스를 구현한 클래스는 @Converter 애너테이션을 적용한다.
+
+- AutoApply 속성값을 보면 이 속성이 true로 지정하면 모델에 출현하는 모든 Money 타입의 프로퍼티에 대해 MoneyConverter를 자동으로 적용한다.
+
+  - 예) Order의 Money
+
+    ~~~java
+    @Entity(name = "orders")
+    @Getter
+    public class Orders {
+    	@Column(name = "total_amounts")
+    	@Convert(converter = MoneyConverter.class) // autoApply값이 true이면 자동으로 @Convert를 지정하지 않아도 MoneyConverter를 적용해서 값 변환
+    	private Money money;
+    }
+    ~~~
+
+
+
+#### 4.3.5 밸류 컬렉션: 별도 테이블 매핑
+
+- Order 엔티티는 한 개 이상의 OrderLine을 가질 수 있다. OrderLine에 순서가 있다면 다음과 같이 List타입을 이용해서 컬렉션을 프로퍼티로 지정할 수 있다.
+- 나는 처음 설계를 할 때 부터 OrderLine은 엔티티로 매핑을 하였다. 허나 책에서는 테이블로 매핑을 하였다.
+
+​	<img src="./img/repository3.jpeg" alt="repository3" style="zoom:33%;" />
+
+- 밸류 컬렉션을 저장하는 ORDER_LINE 테이블은 외래키를 이용해서 엔티티에 해당하는 ordersId를 참조한다. 이 외래키는 컬렉션이 속할 엔티티를 의미한다.
+- 밸류 컬렉션을 별도 테이블로 매핑할 때는 @ElmentCollection과 @CollectionTable을 함께 사용한다.
+- List 타입은 자체적으로 인덱스를 가지고 있다.
+  - @OrderColumn 애너테이션을 이용해서 지정한 칼럼에 리스트의 인덱스 값을 설정할 수 있다.
+  - @CollectionTable은 밸류를 저장할 테이블을 지정한다. name 속성은 테이블 이름을 지정하고 joinColumns 속성은 외부키로 사용할 컬럼을 지정한다. 두개 이상인 경우 @JoinColumn의 배열을 이용해서 외부키 목록을 지정한다.
+
+
+
+#### 4.3.6 밸류 컬렉션: 한 개 컬럼 매핑
+
+- 밸류 컬렉션을 별도 테이블이 아닌 한 개 컬럼에 저장해햐 할 때가 있다. 
+  - 예를 들어 도메인 모델에는 이메일 주소목록을 Set으로 보관하고 DB에는 한개 컬럼에 콤마로 구분해서 저장해야 할때가있다.
+  - 이 때 AttributeConverter를 사용하면 밸류 컬렉션을 한개 컬럼에 쉽게 매핑할 수 있다. 단 AttributeConverter를 사용하려면 밸류 컬렉션을 표현하는 새로운 밸류타입을 추가해야 한다.
+
+
+
+#### 4.3.7 밸류를 이용한 ID 매핑
+
+- 식별자라는 의미를 부각시키기 위해 실별자 자체를 밸류타입으로 만들 수도 있다.
+
+  - 밸류 타입을 식별자로 매핑하면 @Id 대신 @EmbeddedId 애너테이션을 사용한다.
+
+    ~~~java
+    public class OrderLine {
+    	@EmbeddedId
+      private OrderProductId orderProductId;
+    }
+    
+    public class OrderProductId implements Serializable{ 
+      Long orderId;
+      Long productId;
+    }
+    ~~~
+
+  - JPA에서 식별자 타입은 Serializable 타입이어야 하므로 식별자로 사용할 밸류타입은 Serializable 인터페이스를 상속 받아야 한다.
+
+  - 밸류 타입으로 식별자를 구현할 때 얻을 수 있는 장점은 실벼자에 기능을 추가할 수 있다는 점이다.
+
+    - 예시
+    - 1세데 시스템과 2세대 시스템의 주문번호를 구분할 때 주문번호의 첫글자를 이용할 경우
+
+
+
+#### 4.3.8 별도 테이블에 저장하는 밸류 매핑
+
+- **애그리거트에서 루트 엔티티를 뺀 나머지 구성요소는 대부분 밸류이다. 루트 엔티티외에 다른 엔티티가 있다면 진짜 엔티티인지 의심해봐야 한다.** 
+
+  - 단지 별도 테이블에 데이터를 저장한다고 해서 엔티티인 것은 아니다. 주문 애그리거트도 OrderLine을 별도 테이블에 저장하지만 OrderLine 자체는 엔티티가 아니라 밸류이다.
+
+- **밸류가 아니라 엔티티가 확실하다면 해당 엔티티가 다른 애그리거트는 아닌지 확인해야 한다.**
+
+  - 특히 자신만의 독자적인 라이플 사이클을 갖는다면 구분되는 애그리거트일 가능성이 높다.
+
+  - 상품과 리뷰가 대표적인데 상품 상세화면을 보여줄 때 고객 리뷰가 포함된다고 생각할 수 있다.
+
+    - 하지만 Product와 Reivew는 함께 생성되지 않고 함께 변경되지도 않는다.
+    - 또한 두개의 객체를 생성하는 주체가 Product = 상점, Review = 고객으로 다르다.
+    - 그러므로 Review는 엔티티가 맞지만 리뷰 애그리거트에 속한 엔티티이지 상품에 속한 엔티티가 아니다.
+
+  - 애그리거트에 속한 객체가 밸류인지 엔티티인지 구분하는 방법은 고유 식별자는 갖는지 확인하는 것이다.
+
+  - 하지만 식별자를 찾을 때 매핑되는 테이블의 식별자를 애그리거트 구성요소의 식별자와 동일한 것으로 착각하면 안된다.
+
+    - Article과 ArticleContent를 보면 알 수 있듯이 ArticleContent의 식별자는 그저 Article에 속해있는 것을 표현하기에 단순히 밸류로 보는게 더 맞을 것이다.
+
+    - 관계를 정확하게 맞으면 아래와 같이 맺어질 것이다.
+
+      <img src="./img/repository4.jpeg" alt="repository4" style="zoom:100%;" />
+
+  - 이런 경우 ArticleContent를 다른 테이블로 저장하고 싶다면 @SencondaryTable을 이용한다.
+
+    - name 속성은 밸류를 저장할 테이블을 지정한다.
+
+    - pkJoinColumns 속성은 밸류 테이블에서 엔티티 테이블로 조인할 때 사용할 컬럼을 지정한다.
+
+    - @AttriubuteOverride를 이용하여 해당 밸류 데이터가 저장될 테이블 이름을 지정하면 된다.
+
+      ~~~java
+      @SecondaryTable(name ="밸류를 저장할 테이블 이름")
+      public class Atricle{
+      
+      @Embedded
+      @AttriubuteOverride(
+      name = "content",
+      column = @Column(table = "article_content", name = "content"))
+      private ArticleContent articleContent;
+      }
+      ~~~
+
+
+    - 허나 게시글 목록을 보일 땐 Article만 보이면 되는데, @SeconderyTable을 사용하면 조인 해서 가져온다. 이럴 때는 밸류를 엔티티로 설정하고 지연 로딩 방식을 설정할 수 있다고 하는데, 책에서는 비추를 한다.
+
+
+
+#### 4.3.9 밸류 컬렉션을 @Entity로 매핑하기
+
+- 개념젹으로 밸류인데 구현 기술의 한계나 팀 표준에 의해 @Entity를 사용해야할 때가 있다.
+
+- JPA는 @Embeddable 타입의 클래스 상속 매핑을 지원하지 않는다.
+
+  ![repository5](./img/repository5.jpeg)
+
+  - 상속 구조를 갖는 밸류타입을 사용하려면 @Embeddable 대신 @Entity를 이용해서 상속 매핑으로 처리해야 한다.
+
+  - 밸류 타입을 @Entity로 매핑으로 식별자 매핑을 위한 필드도 추가해야 한다.
+
+    ![repository6](./img/repository6.jpeg)
+
+  - 한 테이블에 Image와 그 하위 클래스를 매핑하므로 Image 클래스에 다음 설정을 사용한다.
+
+    - @Inheritance 에너테이션 적용
+    - strategy 값으로 SINGLE_TABLE 사용
+    - @DiscriminatorColumn 애너테이션을 이용하여 타입 구분용으로 사용할 칼럼 지정
+
+  - 상위 클래스인 Image를 추상 클래스로 구현
+
+  ```java
+  @Entity
+  @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+  @DiscriminatorColumn(name = "image_type")
+  @NoArgsConstructor(access = AccessLevel.PROTECTED)
+  @Table(name = "image")
+  public abstract class Image {
+  
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "image_id")
+    Long id;
+  
+    @Column(name = "image_path")
+    private String path;
+    
+  	@Temporal(TemporalType.TIMESTAMP)
+      private Instant uploadTime;
+  ```
+
+    public Image(String path, Instant uploadTime) {
+      this.path = path;
+      this.uploadTime = uploadTime;
+    }
+      
+    protected String getPath() {
+      return path;
+    }
+      
+    public Instant getUploadTime() {
+      return uploadTime;
+    }
+      
+    public abstract String getURL();
+      
+    public abstract boolean hasThumbnail();
+      
+    public abstract String getThumbnailURL();
+     - Image를 상속받는 InternalImage와 ExternalImage를 구현하였다.
+    
+      }
+  ```
+
+ 
+  ```java
+  @Entity
+  @DiscriminatorValue("II")
+  @NoArgsConstructor
+  public class InternalImage extends Image {
+  
+    private String thumbnailURL;
+  
+    public InternalImage(String path, Instant uploadTime, String thumbnailURL) {
+      super(path, uploadTime);
+      this.thumbnailURL = thumbnailURL;
+    }
+  
+    @Override
+    public String getURL() {
+      return this.getURL();
+    }
+  
+    @Override
+    public boolean hasThumbnail() {
+      return thumbnailURL != null;
+    }
+  
+    @Override
+    public String getThumbnailURL() {
+      if (hasThumbnail()) {
+        return this.thumbnailURL;
+      }
+      throw new NoSuchElementException();
+    }
+  }
+  ```
+
+  ```java
+  @Entity
+  @DiscriminatorValue("DI")
+  @NoArgsConstructor
+  public class ExternalImage extends Image {
+  
+    private String thumbnailURL;
+  
+    public ExternalImage(String path, Instant uploadTime, String thumbnailURL) {
+      super(path, uploadTime);
+      this.thumbnailURL = thumbnailURL;
+    }
+  
+    @Override
+    public String getURL() {
+      return this.getPath();
+    }
+  
+    @Override
+    public boolean hasThumbnail() {
+      return thumbnailURL != null;
+    }
+  
+    @Override
+    public String getThumbnailURL() {
+      if (hasThumbnail()) {
+        return this.thumbnailURL;
+      }
+      throw new NoSuchElementException();
+    }
+  }
+  ```
+
+  - Image가 @Entity 이므로 목록을 담고 있는 Product는 @OneToMany를 이용해서 매핑을 처리하며, 상품이 저장될 때나 삭제될 때 영속성이 전이 되게 persist와 remove를 활성화 해주고, 상품이 삭제되면 이미지는 고아객체가 되므로 고아객체 제거를 허용하기 위해 orphanRemoval를 true로 설정해준다.
+
+    ```java
+    @Entity
+    @Getter
+    @NoArgsConstructor
+    public class Product {
+    	...
+    
+      @OneToMany(cascade = {CascadeType.PERSIST, CascadeType.REMOVE},
+          orphanRemoval = true,
+      mappedBy = "product")
+      private List<Image> images = new ArrayList<>();
+    
+      public void changeImages(List<Image> newImages) {
+        images.clear();
+        images.addAll(newImages);
+      }
+    }
+    ```
+
+  - @Entity의 List의 clear를 호출할 때 select쿼리로 대상 엔티티를 로딩하고, 각 개별 엔티티에 대해 delete 쿼리를 실행한다.
+
+    - 이미지가 4개라고 가정하면 상품 정보를 가져올 때 쿼리가 한번 호출되고, clear를 호출할 때 이미지 4개에 대한 쿼리가 각각 호출되어 성능에 문제가 생길 수 있다.
+
+  - 대신 @Embeddable 타입에 대한 컬렉션의 clear() 메서드를 호출하면 컬렉션에 속한 객체를 로딩하지 않고 한번의 delete 쿼리로 삭제처리를 수행한다.
+
+    - 따라서 애그리거트의 특성을 유지하면서 이문제를 해소하려면 결국 상속을 포기하고 @Embeddable로 매핑된 단일 클래스로 구현해야 한다.
+
+    - 예시
+
+      ~~~
+      @Embeddable
+      public class Image{
+      	private String imageType;
+      	private String path;
+      	@Temporal(TemporalType.TIMESTAMP)
+      	private Instant uploadTime;
+      	
+      	public boolean hasThumbnail(){
+      		return this.imageType.equals("II");
+      	}
+      }
+      ~~~
+
+    - 코드 유지보수와 성능의 두가지 측면을 고려해서 구현방식을 선택해야 한다.
+
+
+
+#### 4.3.10 ID참조와 조인 테이블을 이용한 단방향 M-N 매핑
+
+- 애그리거트 간 집합 연관은 성능 상의 이유로 피해야한다.
+
+  - 그럼에도 불구하고 요구사항을 구현하는데 집합 연관을 사용하는 것이 유리하다면 ID 참조를 이용한 단방향 집합 연관을 적용해 볼 수 있다.
+
+    ~~~java
+    @Entity
+    public class Product {
+    	@Id
+      @GeneratedValue(strategy = GenerationType.IDENTITY)
+    	private Long id;
+    	
+    	@ElementCollection
+    	@CollectionTable(name = "product_category", 
+    	joinColumns = @JoinColumn(name = "product_id"))
+    	private Set<CategoryId> categoryIds;
+    }
+    ~~~
+
+    - 위 코드는 Product에서 Category로 단방향 M-N 연관을 ID 참조 방식으로 구현한 것이다.
+    - ID 참조를 이용한 애그리거트 간 단방향 M-N 연관은 밸류 컬렉션 매핑과 동일한 방식으로 설정되었다.
+    - 차이점이 있다면 집합의 값에 밸류 대신 연관을 맺는 식별자가 온다.
+    - @ElementCollection을 이용하기 때문에 Product를 삭제할 때 매핑에 사용한 조인테이블의 데이터도 함께 삭제된다.
+
+
+
+#### 4.4 애그리거트 로딩 전략
+
+- 매핑을 설정할 때 애그리거트에 속한 객체가 모두 모여야 완전한 하나가 된다.
+  - 애그리거트 루트를 로딩하면 루트에 속한 모든 객체가 완전한 상태여야 함을 의미한다.
+
+- 조회 시점에서 애그리거트를 완전한 상태가 되도록 하면 즉시로딩을 하면 된다.
+  - @ManyToOne(fetch = FetchType.EAGER)
+  - 즉시 로딩 방식을 설정하면 애그리거트 루트를 로딩하는 시점에 모두 로딩할 수 있어 좋지만 장점만 있지 않다.
+    - 예상치 못한 쿼리가 발생할 수 있다.
+    - 예를 들자면 @OneToMany가 걸려있는 연관관계의 데이터를 즉시 가져올 때 카타시안 조인이 발생하면서 객체의 개수가 많으면 쿼리의 개수가 객체수 만큼 곱해진다. (상품 1개, 이미지 10개, 옵션 10개 = 1 * 10 * 10 = 100)
+    - 이렇듯 데이터의 개수가 많아지면 성능(실행 빈도, 트래픽, 지연 로딩시 실행속도 등)을 검토해봐야 한다.
+
+- 애그리거트는 개념적으로 하나여야 한다. 하지만 루트 엔티티를 로딩하는 시점에 애그리거트에 속한 객체 모두를 로딩해야 하는 것은 아니다.
+
+  - 애그리거트가 완전해야 하는 이유
+
+    - 상태를 변경하는 기능을 실행할 때 애그리거트 상태가 완전해야한다.
+    - 표현 영역에서 애그리거트의 상태 정보를 보여줄 때 필요하다.
+      - 별도의 조회 전용 기능과 모델을 구현하는 방식(VO?, DTO?)을 사용하는 것이 더 유리하다.
+
+  - 애그리거트의 완전한 로딩과 관련된 문제는 상태변경과 더 관련이 있다. 
+
+  - 상태변경 기능을 실행하기 위해서는 완전한 로딩 상태가 필요없다. 왜냐하면 JPA는 트랜잭션 범위 내에서 지연 로딩을 허용한다.
+
+    ~~~java
+    @Service
+    @RequiredArgsConstructor
+    public class DeleteProductService {
+    
+      private final ProductRepository productRepository;
+    
+      public void removeOptions(Long productId, int optIdx) {
+        //Option은 LAZY로 즉시 로딩 안됨.
+        Product product = productRepository.findById(productId)
+            .orElseThrow(NoSuchElementException::new);
+        //여기서 지연로딩이 된다.
+        product.removeOption(optIdx);
+      }
+    }
+    ~~~
+
+  - 지연로딩의 장점은 동작 방식이 항상 동일하기 때문에 경우의 수를 따질 필요가 없다.
+
+  - 지연 로딩은 즉시로딩보다 쿼리 실행횟수가 많아질 가능성이 더 높다(N+1) -> 이럴 땐 fetchJoin을 해서 즉시로딩 하면 되는데, 보통 성능을 튜닝 할 때는 지연로딩으로 설정하고 튜닝을 진행한다.
+
+  - 각 상황에 알맞게 로딩방식을 사용하면 될 것 같다.
+
+
+
+#### 4.5 애그리거트 영속성 전파
+
+- 애그리거트가 완전한 상태여야 한다는 것은 애그리거트를 조회할 때 뿐 아니라 저장 및 삭제할 때도 하나로 처리해야함을 의미한다.
+  - 저장 메서드는 애그리거트 루트 포함 애그리거트에 속해있는 모든 객체가 저장되어야 한다.
+  - 삭제 메서드는 애그리거트 루트 포함 애그리거트에 속해있는 모든 객체가 삭제되어야 한다.
+- @Embeddable 매핑 타입은 함께 저장되고 삭제되므로 cascde 설정을 하지 않아도 된다.
+- 반면에 @Entity 타입에 대한 매핑은 cascade를 통해 영속성 전파를 설정해줘야 한다.
+  - CascadeType.PERSIST(저장), CascadeType.REMOVE(삭제)
+  - orphanRemoval = true -> true이면 고아객체도 삭제한다를 의미
+
+
+
+#### 4.6 식별자 생성 기능
+
+- 식별자는 크게 세가지 방식중 하나로 생성한다.
+  - 사용자가 직접 생성 (이메일 주소)
+  - 도메인 로직으로 생성 (orderNumber)
+  - DB를 이용한 일련번호 사용(오토 인크리먼트, (오라클, 포스트그레) - 시퀀스)
+- 식별자 생성 규칙이 있다면 엔티티를 생성은 도메인 규칙이므로 별도의 도메인 서비스로 분리한다.
+  - 특정값을 조합하는 식별자도 포함된다 -> orderNumber 또는 날짜를 조합해서 만드는 번호 등
+  - 식별자 생성 규칙을 구현하기에 적합한 또 다른 장소는 레포지토리이다.
+    - 레포지토리 인터페이스에 식별자를 생성하는 메서드를 추가하고 리포지토리 구현 클래스에 알맞게 구현하면된다.(Spring Data JPA를 사용하면 딱히 쓸일은 없을 것 같다.)
+  - DB 자동 증가 칼럼은 @GeneratedValue(strategy = GenerationType.IDENTITY(오토 인크리먼트), GenerationType.SEQUENCE(시퀀스))
+    - 자동 증가 컬럼은 식별자를 DB insert 쿼리를 실행할 때 생성되므로 레포지토리에 객체를 저장이후에 알 수 있다.
+
+
+
+#### 4.7 도메인 구현과 DIP
+
+- 이장에서 구현된 리포지토리는 DIP 원칙을 어기고 있다.
+
+  - 엔티티에서는 구현기술인 JPA에 특화된 @Entity, @Table, @Id, @Column등의 애너테이션을 사용한다.
+
+  - DIP에 따르면 @Entity, @Table은 구현기술에 속하므로 도메인 모델은 구현모델인 JPA에 의존하지 말아야 한다.
+
+  - Repository 인터페이스도 JPA의 구현기술인 JpaRepository를 상속받는다. 
+
+  - 구현 기술에 의존 없이 도메인을 순수하게 유지하려면 아래의 그림과 같이 구현해야 한다.
+
+    ![](./img/repository7.jpeg)
+
+  - 위의 사진의 구조처럼 구현한다면 도메인이 받는 영향을 최소화 할 수 있다.
+  - DIP를 적용하는 주된 이유는 저수준 구현이 변경되더라도 고수준이 영향을 받지 않도록 하기 위함이다. 하지만 레포지토리와 도메인 모델의 구현기술은 거의 바뀌지 않는다.
+  - 개발의 편의성과 실용성을 가져가기 위해 기술에 따른 구현 제약이 낮다면 합리적인 선택이 될 수 있다.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

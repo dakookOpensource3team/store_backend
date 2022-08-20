@@ -1,5 +1,6 @@
 package com.example.ddd_start.application.service.product;
 
+import com.example.ddd_start.domain.common.Money;
 import com.example.ddd_start.domain.product.Product;
 import com.example.ddd_start.domain.product.ProductInfo;
 import com.example.ddd_start.domain.product.ProductRepository;

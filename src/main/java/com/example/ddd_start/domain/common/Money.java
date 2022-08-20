@@ -9,21 +9,25 @@ import lombok.NoArgsConstructor;
 @Getter
 public class Money {
 
-  private Integer value;
+  private Integer amount;
 
-  public Money(Integer value) {
-    this.value = value;
+  public Money(Integer amount) {
+    this.amount = amount;
   }
 
   public Money add(Money money) {
-    return new Money(this.value + money.value);
+    return new Money(this.amount + money.amount);
   }
 
   public Money multiply(int quantity) {
-    return new Money(this.value * quantity);
+    return new Money(this.amount * quantity);
   }
 
   private Money subtract(Money money) {
-    return new Money(this.value - money.value);
+    return new Money(this.amount - money.amount);
+  }
+
+  private void setAmount(Integer amount) {
+    this.amount = amount;
   }
 }

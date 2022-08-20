@@ -2,6 +2,7 @@ package com.example.ddd_start.domain.store;
 
 import static com.example.ddd_start.domain.store.StoreStatus.CLOSED;
 
+import com.example.ddd_start.domain.common.Money;
 import com.example.ddd_start.domain.common.exception.StoreBlockedException;
 import com.example.ddd_start.domain.product.Product;
 import com.example.ddd_start.domain.product.ProductInfo;
@@ -40,7 +41,7 @@ public class Store {
     if (isStoreBlocked()) {
       throw new StoreBlockedException();
     }
-    Product product = new Product(productInfo.getName(), productInfo.getPrice(),
+    Product product = new Product(productInfo.getName(), new Money(productInfo.getPrice()),
         productInfo.getCategoryId(), this);
     products.add(product);
     return product;

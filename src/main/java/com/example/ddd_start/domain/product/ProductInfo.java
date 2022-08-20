@@ -7,15 +7,15 @@ import lombok.Getter;
 public class ProductInfo {
 
   private final String name;
-  private final Money price;
+  private final Integer price;
   private Long categoryId;
 
-  public ProductInfo(String name, Money price) {
+  public ProductInfo(String name, Integer price) {
     this.name = name;
     this.price = price;
   }
 
-  public ProductInfo(String name, Money price, Long categoryId) {
+  public ProductInfo(String name, Integer price, Long categoryId) {
     this.name = name;
     this.price = price;
     this.categoryId = categoryId;

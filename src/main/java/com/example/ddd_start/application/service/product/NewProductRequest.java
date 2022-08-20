@@ -8,16 +8,16 @@ public class NewProductRequest {
 
   private final Long storeId;
   private final String name;
-  private final Money price;
+  private final Integer price;
   private Long categoryId;
 
-  public NewProductRequest(Long storeId, String name, Money price) {
+  public NewProductRequest(Long storeId, String name, Integer price) {
     this.storeId = storeId;
     this.name = name;
     this.price = price;
   }
 
-  public NewProductRequest(Long storeId, String name, Money price, Long categoryId) {
+  public NewProductRequest(Long storeId, String name, Integer price, Long categoryId) {
     this.storeId = storeId;
     this.name = name;
     this.price = price;

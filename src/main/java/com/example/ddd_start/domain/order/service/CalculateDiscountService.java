@@ -1,6 +1,6 @@
 package com.example.ddd_start.domain.order.service;
 
-import com.example.ddd_start.domain.calculate_rule_engine.CalculateRuleEngine;
+import com.example.ddd_start.domain.order.calculate_rule_engine.CalculateRuleEngine;
 import com.example.ddd_start.domain.common.Money;
 import com.example.ddd_start.domain.customer.Customer;
 import com.example.ddd_start.domain.customer.CustomerRepository;
@@ -23,7 +23,7 @@ public class CalculateDiscountService {
     Optional<Customer> optionalCustomer = customerRepository.findById(customerId);
     Customer customer = optionalCustomer.orElseThrow(NoSuchElementException::new);
 
-    List<?> facts = Arrays.asList(customer, new Money());
+    List<?> facts = Arrays.asList(customer, new Money(null));
     calculateRuleEngine.evalutate(facts);
   }
 }
