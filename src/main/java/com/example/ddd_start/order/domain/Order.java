@@ -31,7 +31,7 @@ import lombok.NoArgsConstructor;
 @Entity(name = "orders")
 @NoArgsConstructor
 @Getter
-public class Orders {
+public class Order {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -47,13 +47,14 @@ public class Orders {
           column = @Column(name = "receiver_phone_number"))
   })
   private ShippingInfo shippingInfo;
-  @OneToMany(mappedBy = "orders", cascade = CascadeType.ALL)
+  @OneToMany(mappedBy = "order", cascade = CascadeType.ALL)
   List<OrderLine> orderLines;
   @Embedded
   @AttributeOverride(name = "amount", column = @Column(name = "total_amounts"))
   private Money totalAmounts;
   @Embedded
   private Orderer orderer;
+  private Instant createdAt;
 
 
   public void Order(List<OrderLine> orderLines, ShippingInfo shippingInfo, Orderer orderer) {

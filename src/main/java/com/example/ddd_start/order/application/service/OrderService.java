@@ -4,8 +4,8 @@ import com.example.ddd_start.order.application.model.ChangeOrderShippingInfoComm
 import com.example.ddd_start.common.domain.exception.NoOrderException;
 import com.example.ddd_start.member.domain.Member;
 import com.example.ddd_start.member.domain.MemberRepository;
+import com.example.ddd_start.order.domain.Order;
 import com.example.ddd_start.order.domain.OrderRepository;
-import com.example.ddd_start.order.domain.Orders;
 import com.example.ddd_start.order.domain.value.ShippingInfo;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -22,21 +22,21 @@ public class OrderService {
 
   @Transactional
   public void cancelOrder(Long orderId) {
-    Optional<Orders> optionalOrder = orderRepository.findById(orderId);
-    Orders orders = optionalOrder.orElseThrow(NoOrderException::new);
-    orders.cancel();
+    Optional<Order> optionalOrder = orderRepository.findById(orderId);
+    Order order = optionalOrder.orElseThrow(NoOrderException::new);
+    order.cancel();
   }
 
   @Transactional
   public void changeShippingInfo(ChangeOrderShippingInfoCommand changeOrderShippingInfoCommand) {
-    Optional<Orders> optionalOrder = orderRepository.findById(
+    Optional<Order> optionalOrder = orderRepository.findById(
         changeOrderShippingInfoCommand.getOrderId());
-    Orders orders = optionalOrder.orElseThrow(NoOrderException::new);
+    Order order = optionalOrder.orElseThrow(NoOrderException::new);
     ShippingInfo newShippingInfo = changeOrderShippingInfoCommand.getShippingInfo();
-    orders.changeShippingInfo(newShippingInfo);
+    order.changeShippingInfo(newShippingInfo);
 
     if (changeOrderShippingInfoCommand.isUseNewShippingAddressAsMemberAddress()) {
-      Optional<Member> optionalMember = memberRepository.findById(orders.getOrderer().getMemberId());
+      Optional<Member> optionalMember = memberRepository.findById(order.getOrderer().getMemberId());
       Member member = optionalMember.orElseThrow(NoSuchElementException::new);
       member.changeAddress(newShippingInfo.getAddress());
     }

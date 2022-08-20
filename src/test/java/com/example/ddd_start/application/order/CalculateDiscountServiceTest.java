@@ -3,7 +3,7 @@ package com.example.ddd_start.application.order;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.example.ddd_start.order.domain.calculate_rule_engine.CalculateRuleEngine;
+import com.example.ddd_start.order.domain.CalculateRuleEngine;
 import com.example.ddd_start.customer.domain.Customer;
 import com.example.ddd_start.customer.domain.CustomerRepository;
 import com.example.ddd_start.order.domain.OrderLine;

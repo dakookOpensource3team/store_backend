@@ -491,8 +491,8 @@ public class DroolsRuleEngine implements CalculateRuleEngine{
 
     ~~~java
     Member member = memberRepository.findByOrdererId(ordererId);
-    List<Order> orders = orderRepository.findByOrdererId(ordererId);
-    List<OrderView> dtos = orders.stream()
+    List<Order> order = orderRepository.findByOrdererId(ordererId);
+    List<OrderView> dtos = order.stream()
     	.map(order -> {
     		Long productId = order.getOrderLines().get(0).getProductId();
     		//각 주문마다 첫번째 주문 상품 정보 로딩을 위한 쿼리 실행 -> N + 1 문제 발생
@@ -602,12 +602,12 @@ public class DroolsRuleEngine implements CalculateRuleEngine{
       public void changeShippingInfo(ChangeOrderShippingInfoCommand changeOrderShippingInfoCommand) {
         Optional<Orders> optionalOrder = orderRepository.findById(
             changeOrderShippingInfoCommand.getOrderId());
-        Orders orders = optionalOrder.orElseThrow(NoOrderException::new);
+        Orders order = optionalOrder.orElseThrow(NoOrderException::new);
         ShippingInfo newShippingInfo = changeOrderShippingInfoCommand.getShippingInfo();
-        orders.changeShippingInfo(newShippingInfo);
+        order.changeShippingInfo(newShippingInfo);
     
         if (changeOrderShippingInfoCommand.isUseNewShippingAddressAsMemberAddress()) {
-          Optional<Member> optionalMember = memberRepository.findById(orders.getOrderer().getMemberId());
+          Optional<Member> optionalMember = memberRepository.findById(order.getOrderer().getMemberId());
           Member member = optionalMember.orElseThrow(NoSuchElementException::new);
           member.changeAddress(newShippingInfo.getAddress());
         }
@@ -643,7 +643,7 @@ public class DroolsRuleEngine implements CalculateRuleEngine{
 
       ~~~java
       //엔티티
-      @Entity(name = "orders")
+      @Entity(name = "order")
       @Getter
       public class Orders {
       
@@ -661,7 +661,7 @@ public class DroolsRuleEngine implements CalculateRuleEngine{
                 column = @Column(name = "receiver_phone_number"))
         })
         private ShippingInfo shippingInfo;
-        @OneToMany(mappedBy = "orders", cascade = CascadeType.ALL)
+        @OneToMany(mappedBy = "order", cascade = CascadeType.ALL)
         List<OrderLine> orderLines;
         @Embedded
         @AttributeOverride(name = "value", column = @Column(name = "total_amounts"))
@@ -702,7 +702,7 @@ public class DroolsRuleEngine implements CalculateRuleEngine{
 
   ~~~java
   //엔티티
-  @Entity(name = "orders")
+  @Entity(name = "order")
   @Getter
   public class Orders {
   ...
@@ -732,7 +732,7 @@ public class DroolsRuleEngine implements CalculateRuleEngine{
    - Order의는 ShippingInfo 밸류의 Receiver 밸류의 name, phone_number 컬럼의 의미 전달을 위해 @AttributeOverride를 통해 컬럼이름을 커스터마이징 해주었다.
 
      ~~~java
-     @Entity(name = "orders")
+     @Entity(name = "order")
      @Getter
      public class Orders { 
        //...
@@ -821,7 +821,7 @@ public interface AttributeConverter<X,Y> {
 ```java
 package com.example.ddd_start.infrastructure.money.moeny_converter;
 
-import com.example.ddd_start.domain.common.Money;
+import com.example.ddd_start.common.domain.Money;
 import javax.persistence.AttributeConverter;
 import javax.persistence.Converter;
 
@@ -849,7 +849,7 @@ public class MoneyConverter implements AttributeConverter<Money, Integer> {
   - 예) Order의 Money
 
     ~~~java
-    @Entity(name = "orders")
+    @Entity(name = "order")
     @Getter
     public class Orders {
     	@Column(name = "total_amounts")
@@ -1022,11 +1022,12 @@ public class MoneyConverter implements AttributeConverter<Money, Integer> {
       
     public abstract String getThumbnailURL();
      - Image를 상속받는 InternalImage와 ExternalImage를 구현하였다.
-    
+  
       }
+  
   ```
 
- 
+
   ```java
   @Entity
   @DiscriminatorValue("II")
@@ -1265,11 +1266,82 @@ public class MoneyConverter implements AttributeConverter<Money, Integer> {
 
 
 
+### 5. 스프링 데이터 JPA를 이용한 조회 기능
+
+#### 5.1 시작에 앞서
+
+- CQRS는 명령(Command) 모델과 조회(Query)모델을 분리하는 패턴이다.
+  - 명령 모델은 상태를 변경하는 기능을 구현할 때 사용한다.
+    - 예) 회원 가입, 암호 변경 등 처럼 상태(데이터)를 변경하는  기능
+  - 조회 모델은 데이터를 조회하는 기능을 구현할 때 사용한다.
+    - 예) 주문 목록 조회, 주문 상세 조회(테이터)를 조회하는 기능
+- 엔티티, 애그리거트, 레피지토리 등의 모델은 상태를 변경할 때 주로 사용된다. 즉 도메인 모델은 명령 모델로 주로 사용된다.
 
 
 
+#### 5.2 검색을 위한 스펙
+
+- 검색 조건이 고정되어 있고 단순하면 특정 조건으로 조회하는 기능을 만들면 된다.
+
+  ~~~java
+  @Repository
+  public interface OrderRepository extends JpaRepository<Orders, Long> {
+  
+    List<Orders> findAllByIdAndCreatedAtBetween(Long id, Instant startAt, Instant endedAt);
+  }
+  ~~~
+
+- 목록 조회와 같은 기능은 다양한 검색 조건을 조합해야 할 때가 있다. 필요한 조합마다 find 메서드를 정의할 수도 있지만 이것은 좋은 방법이 아니다. 조합이 증가할수록 정의해야 할 find 메서드도 함께 증가한다.
+
+  > 책에서는 Spectificaiton을 쓰는 방법을 통해 동적으로 조건을 거는 법을 서술했으나, 나는 Querydsl을 써서 구현할 예정이다.
+
+- 레포지토리나 DAO는 검색 대상을 걸러내는 용도로 스펙을 사용한다. 레포지토리가 스펙을 이용해서 검색 대상을 걸러주므로 특정 조건을 충족하는 애그리거트를 찾고 싶으면 스펙을 생성해서 레포지토리에 전달해주기만 하면 된다.
+- 하지만 실제 스펙은 이렇게 구현하지 않는다. 모든 애그리거트 객체를 메모리에 보관하기도 어렵고, 설사 메모리에 다 보관할 수 있다 하더라도 조회 성능에 심각한 문제가 발생한다.
+  - 실제 스펙은 사용하는 기술에 맞춰 구현하게 된다.
 
 
+
+#### 5.3 스프링 데이터 JPA를 이용한 스펙 구현
+
+- 책에서는 Criteria를 사용해서 구현하는데 이것은 개발을 진행하는데 비추되므로 QueryDsl을 사용해서 구현할 것이다.
+
+  - ordererId를 이용한 orderDto조회
+
+  ~~~java
+  public class OrderCustomRepositoryImpl implements OrderCustomRepository {
+  
+    private final JPAQueryFactory queryFactory;
+  
+    public OrderCustomRepositoryImpl(EntityManager em) {
+      this.queryFactory = new JPAQueryFactory(em);
+    }
+  
+    @Override
+  
+    public List<OrderDto> findOrderByOrdererId(OrderSearchCondition orderSearchCondition) {
+      List<OrderDto> result = queryFactory.query()
+          .select(Projections.constructor(OrderDto.class,
+              order.orderNumber,
+              order.orderState,
+              order.shippingInfo,
+              order.totalAmounts,
+              order.orderer.name,
+              order.createdAt
+          ))
+          .from(order)
+          .where(ordererIdEq(orderSearchCondition.getOrdererId()))
+          .fetch();
+  
+      return result;
+    }
+  
+    private BooleanExpression ordererIdEq(Long ordererId) {
+      return ordererId == null ? null : order.orderer.memberId.eq(ordererId);
+    }
+  }
+  ~~~
+  
+  
 
 
 

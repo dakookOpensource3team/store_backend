@@ -1,6 +1,7 @@
 package com.example.ddd_start.order.domain;
 
 import com.example.ddd_start.order.domain.dto.OrderResponseDto;
+import java.time.Instant;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -8,7 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface OrderRepository extends JpaRepository<Orders, Long> {
+public interface OrderRepository extends JpaRepository<Order, Long>, OrderCustomRepository {
 
   @Query(value =
       "select new com.example.ddd_start.order.domain.dto.OrderResponseDto(o, m, p) "
@@ -17,4 +18,6 @@ public interface OrderRepository extends JpaRepository<Orders, Long> {
           + "and o.orderer.memberId = m.id "
           + "and ol.product_id = p.id")
   List<OrderResponseDto> findOrdersByMemberId(@Param("memberId") Long memberId);
+
+  List<Order> findAllByIdAndCreatedAtBetween(Long id, Instant startAt, Instant endedAt);
 }
