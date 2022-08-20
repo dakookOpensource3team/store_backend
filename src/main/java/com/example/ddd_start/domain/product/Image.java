@@ -27,7 +27,6 @@ public abstract class Image {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
-  @Column(name = "image_id")
   private Long id;
 
   @Column(name = "image_path")
@@ -40,9 +39,10 @@ public abstract class Image {
   @JoinColumn(name = "product_id")
   private Product product;
 
-  public Image(String path, Instant uploadTime) {
+  public Image(String path, Instant uploadTime, Product product) {
     this.path = path;
     this.uploadTime = uploadTime;
+    this.product = product;
   }
 
   protected String getPath() {

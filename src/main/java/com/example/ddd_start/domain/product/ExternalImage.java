@@ -7,14 +7,14 @@ import javax.persistence.Entity;
 import lombok.NoArgsConstructor;
 
 @Entity
-@DiscriminatorValue("DI")
+@DiscriminatorValue("EI")
 @NoArgsConstructor
 public class ExternalImage extends Image {
 
   private String thumbnailURL;
 
-  public ExternalImage(String path, Instant uploadTime, String thumbnailURL) {
-    super(path, uploadTime);
+  public ExternalImage(String path, Instant uploadTime, String thumbnailURL, Product product) {
+    super(path, uploadTime, product);
     this.thumbnailURL = thumbnailURL;
   }
 

@@ -9,7 +9,7 @@ public class MoneyConverter implements AttributeConverter<Money, Integer> {
 
   @Override
   public Integer convertToDatabaseColumn(Money money) {
-    return money == null ? null : money.getValue();
+    return money == null ? null : money.getAmount();
   }
 
   @Override

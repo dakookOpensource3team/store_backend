@@ -44,21 +44,12 @@ public class Product {
       joinColumns = @JoinColumn(name = "product_id"))
   @OrderColumn(name = "list_idx")
   private List<Option> options = new ArrayList<>();
-  @OneToMany(cascade = {CascadeType.PERSIST, CascadeType.REMOVE},
-      orphanRemoval = true, mappedBy = "product")
-  @OrderColumn(name = "list_idx")
-  private List<Image> images = new ArrayList<>();
 
   public Product(String name, Money price, Long categoryId, Store store) {
     this.name = name;
-    this.price = new Money(price.getValue());
+    this.price = new Money(price.getAmount());
     this.categoryId = categoryId;
     this.store = store;
-  }
-
-  public void changeImages(List<Image> newImages) {
-    images.clear();
-    images.addAll(newImages);
   }
 
   public void removeOption(int optionIdx) {

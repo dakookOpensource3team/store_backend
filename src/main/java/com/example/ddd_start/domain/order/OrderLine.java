@@ -25,13 +25,13 @@ public class OrderLine {
   private Long id;
   private Long product_id;
   @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "order_id")
+  @JoinColumn(name = "orders_id")
   private Orders orders;
   @Embedded
-  @AttributeOverride(name = "value", column = @Column(name = "amount"))
+  @AttributeOverride(name = "amount", column = @Column(name = "amount"))
   private Money amount;
   @Embedded
-  @AttributeOverride(name = "value", column = @Column(name = "price"))
+  @AttributeOverride(name = "amount", column = @Column(name = "price"))
   private Money price;
   private Integer quantity;
 

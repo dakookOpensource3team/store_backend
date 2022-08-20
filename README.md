@@ -549,7 +549,7 @@ public class DroolsRuleEngine implements CalculateRuleEngine{
     if (isStoreBlocked()) {
       throw new StoreBlockedException();
     }
-    Product product = new Product(productInfo.getName(), productInfo.getPrice(),
+    Product product = new Product(productInfo.getName(), productInfo.getAmount(),
         productInfo.getCategoryId(), this);
     products.add(product);
     return product;

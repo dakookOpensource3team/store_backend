@@ -13,8 +13,8 @@ public class InternalImage extends Image {
 
   private String thumbnailURL;
 
-  public InternalImage(String path, Instant uploadTime, String thumbnailURL) {
-    super(path, uploadTime);
+  public InternalImage(String path, Instant uploadTime, String thumbnailURL, Product product) {
+    super(path, uploadTime, product);
     this.thumbnailURL = thumbnailURL;
   }
 

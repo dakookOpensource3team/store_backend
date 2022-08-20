@@ -23,7 +23,7 @@ public class CalculateDiscountService {
     Optional<Customer> optionalCustomer = customerRepository.findById(customerId);
     Customer customer = optionalCustomer.orElseThrow(NoSuchElementException::new);
 
-    List<?> facts = Arrays.asList(customer, new Money());
+    List<?> facts = Arrays.asList(customer, new Money(null));
     calculateRuleEngine.evalutate(facts);
   }
 }

@@ -9,5 +9,5 @@ public class Option {
 
   private String name;
   @Embedded
-  private Money value;
+  private Money price;
 }
