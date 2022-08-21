@@ -2,10 +2,10 @@ package com.example.ddd_start.order.presentation;
 
 import com.example.ddd_start.order.application.service.OrderService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-@Controller
+@RestController
 @RequiredArgsConstructor
 public class OrderController {
 
