@@ -1,18 +1,22 @@
 package com.example.ddd_start.order.application.service;
 
-import com.example.ddd_start.order.application.model.ChangeOrderShippingInfoCommand;
 import com.example.ddd_start.common.domain.exception.NoOrderException;
 import com.example.ddd_start.member.domain.Member;
 import com.example.ddd_start.member.domain.MemberRepository;
+import com.example.ddd_start.order.application.model.ChangeOrderShippingInfoCommand;
 import com.example.ddd_start.order.domain.Order;
 import com.example.ddd_start.order.domain.OrderRepository;
+import com.example.ddd_start.order.domain.dto.OrderDto;
 import com.example.ddd_start.order.domain.value.ShippingInfo;
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class OrderService {
@@ -40,5 +44,13 @@ public class OrderService {
       Member member = optionalMember.orElseThrow(NoSuchElementException::new);
       member.changeAddress(newShippingInfo.getAddress());
     }
+  }
+
+  @Transactional(readOnly = true)
+  public void findOrders() {
+    List<OrderDto> allOrder = orderRepository.search();
+    allOrder.forEach(
+        e -> log.info("id: " + e.getOrderNumber())
+    );
   }
 }

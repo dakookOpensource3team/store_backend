@@ -1343,21 +1343,168 @@ public class MoneyConverter implements AttributeConverter<Money, Integer> {
   
   
 
+#### 5.4 레포지토리/DAO에서 스펙 사용하기
+
+- 스펙을 충족하는 엔티티를 검색하고 싶다면 findAll()메소드를 사용하면 된다.
+  - findAll()메서드는 스펙 인터페이스를 파라미터로 갖는다.
 
 
 
+#### 5.5 스펙 조합
+
+- 스프링 데이터 JPA가 제공하는 스펙 인터페이스는 스펙을 조합할 수 있는 메소드를 제공한다(and와 or 제공). 허나 Querydsl도 where절에 and(), or()메소드를 제공하고 있다.
+
+- Querydsl의 and(), or()메소드
+
+  ~~~java
+  @Override
+  public List<OrderDto> findOrderByOrdererIdAndOrderStateShipping(
+    OrderSearchCondition orderSearchCondition) {
+    List<OrderDto> result = queryFactory.query()
+      .select(Projections.constructor(OrderDto.class,
+  				order.orderNumber,
+  				order.orderState,
+  				order.shippingInfo,
+          order.totalAmounts,
+          order.orderer.name,
+          order.createdAt))
+      .from(order)
+      .where(ordererIdEq(orderSearchCondition.getOrdererId())
+             .and(orderStateEq(OrderState.SHIPPED)))
+      .fetch();
+  
+    return result;
+  }
+  ~~~
+
+  
+
+#### 5.6 정렬 지정하기
+
+- 스프링 데이터 JPA는 두 가지 방법을 사용해서 정렬을 지정할 수 있다.
+
+  - 메서드 이름에 OrderBy를 사용해서 정렬 기준 지정
+
+  - Sort를 인자로 전달
+
+- 특정 프로퍼티로 조회하는 find 메서드 이름 뒤에 OrderBy를 사용해서 정렬 순서를 지정할 수 있다.
+
+  ~~~java
+  List<Order> findOrderByIdOrderByCreatedAtDesc(Long id);
+  ~~~
+
+  - Id 프로퍼티 값을 기준으로 검색조건 지정
+  - createdAt 프로퍼티 값 역순으로 정렬 (최신 데이터부터 출력함)
+
+- 두개 이상의 프로퍼티에 대한 정렬 순서를 지정할수도 있다.
+
+  ~~~java
+  List<Order> findOrderByIdOrderByCreatedAtDescTotalAmountsDesc(Long id);
+  ~~~
+
+  - createdAt 프로퍼티값 역순, 주문 총금액 역순으로 정렬
+
+- 메서드 이름에 OrderBy를 사용하는 방법은 간단하지만 정렬 기준 프로퍼티가 두 개 이상이면 메서드 이름이 길어지는 단점이 있다.
+
+  - 또한 메서드 이름으로 정렬 순서가 정해지기 때문에 상황에 따라 정렬 순서를 변경할 수도 없다.
+  - 이럴때는 Sort 타입을 사용하면 된다.
+
+- 스프링 데이터 JPA는 정렬 순서를 지정할 때 사용할 수 있는 Sort 타입을 제공한다.
+
+  ~~~java
+  List<Order> findOrderByOrdererId(@Param("OrdererId") Long id, Sort sort);
+  ~~~
+
+  - sort 단일 및 다중 설정하는 방법
+
+  ~~~java
+  // 단일
+  Sort sort = Sort.by("createdAt").ascending();
+  
+  // 다중
+  Sort sort1 = Sort.by("createdAt").ascending();
+  Sort sort2 = Sort.by("totalAmounts").ascending();
+  Sort sort = sort1.and(sort2);
+  	// 또는
+  Sort sort = Sort.by("createdAt").descending().and(Sort.by("totalAmounts").ascending());
+  ~~~
+
+**Querydsl의 정렬 방법**
+
+- orderBy(): 정렬 메소드
+
+- 정렬하고 싶은 필드를 파라미터로 넘기면 된다
+
+   `.orderBy(member.age.desc())`
+
+   `.orderBy(member.age.asc())`
 
 
 
+#### 5.7 페이징 처리하기
+
+- 목록을 보여줄 때 전체 데이터 중 일부만 보여주는 페이징처리는 기본이다.
+
+- 스프링 데이터 JPA는 페이징 처리를 위해 Pageable 타입을 이요한다. Sort 타입과 마찬가지로 findAll()메서드에 Pageable 타입 파라미터를 사용하면 페이징을 자동으로 처리해준다.
+
+  ~~~java
+  public interface MemberRepository extends JpaRepository<Member, Long> {
+  
+    List<Member> findMemberByNameLike(String name, Pageable pageable);
+  
+  }
+  ~~~
+
+  - findByNameLike() 메서드의 마지막 파라미터로 Pageable 타입을 갖는다.
+  - Pageable 타입은 인터페이스로 실제 Pageable 타입 객체는 PageRequest 클래스를 이용해서 생성한다.
+  - findMemberByNameLike() 메서드를 호출하는 예
+
+  ~~~java
+  // 첫번째 파라미터는 page, 두번째 파라미터는 size
+  // 아래의 함수는 0번째 page 부터 10개씩 가져온다는 것을 의미한다.
+  PageRequest pageRequest = PageRequest.of(0, 10);
+  List<Member> memberByNameLike = memberRepository.findMemberByNameLike(name, pageRequest);
+  ~~~
+
+- PageReuqest와 Sort를 사용하면 정렬 순서를 지정할 수 있다.
+
+  ~~~java
+  Sort sort = Sort.by("id").descending();
+  PageRequest pageRequest = PageRequest.of(0, 10, sort);
+  ~~~
+
+- Page 타입을 사용하면 데이터 목록뿐만 아니라 조건에 해당하는 전체 개수도 구할 수 있다.
+
+  ~~~java
+  Page<Member> findPageMemberByNameLike(String name, Pageable pageable);
+  ~~~
+
+  - Pageable을 사용하는 메서드의 리턴 타입이 Page일 경우 스프링 데이터 JPA는 목록 조회 쿼리와 함께 COUNT 쿼리도 실행해서 조건에 해당하는 데이터 개수를 구한다.
+  - Page는 전체 개수, 페이지 개수 등 페이징 처리에 필요한 데이터도 함께 제공한다.
+
+- findAll() 메서드도 Pageable을 사용할 수 있다.
+
+- 처음부터 N개의 데이터가 필요하다면 Pageable을 사용하지않고 findFirstN 형식의 메서드를 사용할 수도 있다.
+
+  ~~~java
+  List<Member> findFirst3ByNameLikeOrderByName(String name);
+  ~~~
+
+  - First대신 Top을 사용해도 문제 없다. Fisrt나 Top 뒤에 숫자가 없으면 한개 결과만 리턴한다.
+
+  ~~~java
+  List<Member> findTop3ByNameLikeOrderByName(String name);
+  ~~~
 
 
 
+**Querydsl의 페이징**
 
+~~~java
+from(Entity)
+ .offset(pageable.getOffset())
+ .limit(pageable.getPageSize())
+~~~
 
-
-
-
-
-
-
+- 조회 메서드를 추가할때 offset은 몇번째 데이터부터 가져올지를 결정하고, limit은 몇개의 데이터를 가져올지를 정한다.
 

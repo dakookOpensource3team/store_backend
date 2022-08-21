@@ -1,5 +1,6 @@
 package com.example.ddd_start.order.domain;
 
+import com.example.ddd_start.order.domain.value.OrderState;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -7,5 +8,6 @@ import lombok.Getter;
 @AllArgsConstructor
 public class OrderSearchCondition {
 
-  Long ordererId;
+  private Long ordererId;
+  private OrderState orderState;
 }

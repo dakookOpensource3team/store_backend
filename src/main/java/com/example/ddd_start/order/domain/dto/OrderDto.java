@@ -5,7 +5,9 @@ import com.example.ddd_start.order.domain.value.OrderState;
 import com.example.ddd_start.order.domain.value.ShippingInfo;
 import java.time.Instant;
 import lombok.AllArgsConstructor;
+import lombok.Getter;
 
+@Getter
 @AllArgsConstructor
 public class OrderDto {
 

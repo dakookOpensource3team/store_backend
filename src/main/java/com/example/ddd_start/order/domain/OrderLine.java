@@ -26,7 +26,7 @@ public class OrderLine {
   private Long product_id;
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "orders_id")
-가  private Order order;
+  private Order order;
   @Embedded
   @AttributeOverride(name = "amount", column = @Column(name = "amount"))
   private Money amount;
