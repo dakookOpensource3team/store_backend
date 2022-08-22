@@ -2,10 +2,9 @@ package com.example.ddd_start.order.domain;
 
 import static com.example.ddd_start.order.domain.QOrder.order;
 
-import com.example.ddd_start.order.domain.OrderRepositoryCustom;
-import com.example.ddd_start.order.domain.OrderSearchCondition;
 import com.example.ddd_start.order.domain.dto.OrderDto;
 import com.example.ddd_start.order.domain.value.OrderState;
+import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -38,9 +37,17 @@ public class OrderRepositoryCustomImpl implements OrderRepositoryCustom {
     return result;
   }
 
-//  @Override
+  @Override
   public List<OrderDto> searchMyStateOrders(
       OrderSearchCondition orderSearchCondition) {
+    BooleanBuilder builder = new BooleanBuilder();
+    if (orderSearchCondition.getOrdererId() != null) {
+      builder.and(ordererIdEq(orderSearchCondition.getOrdererId()));
+    }
+    if (orderSearchCondition.getOrderState() != null) {
+      builder.and(orderStateEq(orderSearchCondition.getOrderState()));
+    }
+
     List<OrderDto> result = queryFactory
         .select(Projections.constructor(OrderDto.class,
             order.orderNumber,
@@ -51,8 +58,7 @@ public class OrderRepositoryCustomImpl implements OrderRepositoryCustom {
             order.createdAt
         ))
         .from(order)
-        .where(ordererIdEq(orderSearchCondition.getOrdererId())
-            .and(orderStateEq(orderSearchCondition.getOrderState())))
+        .where(builder)
         .fetch();
 
     return result;

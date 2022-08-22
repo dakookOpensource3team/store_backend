@@ -1508,3 +1508,97 @@ from(Entity)
 
 - 조회 메서드를 추가할때 offset은 몇번째 데이터부터 가져올지를 결정하고, limit은 몇개의 데이터를 가져올지를 정한다.
 
+
+
+#### 5.8 스펙 조합을 위한 스펙 빌더 클래스
+
+- criteria부분은 스킵하고, Querydsl에서의 BooleanBuilder를 생성하는 법을 정리해 두겠다.
+
+~~~java
+ @Override
+  public List<OrderDto> searchMyStateOrders(
+      OrderSearchCondition orderSearchCondition) {
+    //builder 생성
+    BooleanBuilder builder = new BooleanBuilder();
+    if (orderSearchCondition.getOrdererId() != null) {
+      builder.and(ordererIdEq(orderSearchCondition.getOrdererId()));
+    }
+    if (orderSearchCondition.getOrderState() != null) {
+      builder.and(orderStateEq(orderSearchCondition.getOrderState()));
+    }
+    //builder 생성 완료
+
+    List<OrderDto> result = queryFactory
+        .select(Projections.constructor(OrderDto.class,
+            order.orderNumber,
+            order.orderState,
+            order.shippingInfo,
+            order.totalAmounts,
+            order.orderer.name,
+            order.createdAt
+        ))
+        .from(order)
+        .where(builder)
+        .fetch();
+
+    return result;
+  }
+~~~
+
+- BooleanBulider를 통해 builder를 생성하여 미리 where절에 들어갈 조건을 생성하였다
+- 코드를 보면 기존의 where절에 조건을 넣는것보다 미리 빌더를 생성하니 더 깔끔해졌다.
+
+
+
+#### 5.9 동적 인스턴스 생성
+
+- JPA는 쿼리 결과 값을 임의의 객체를 동적으로 생성할 수 있다.
+
+~~~java
+@Query(value =
+       //아래의 select 구문을 보면 new를 통해 dto 생성자를 호출한다.
+      "select new com.example.ddd_start.order.domain.dto.OrderResponseDto(o, m, p) "
+          + "from orders o join o.orderLines ol, Member m, Product p "
+          + "where o.orderer.memberId = :memberId "
+          + "and o.orderer.memberId = m.id "
+          + "and ol.product_id = p.id")
+  List<OrderResponseDto> findOrdersByMemberId(@Param("memberId") Long memberId);
+~~~
+
+
+
+- Querydsl은 쿼리 결과에서 임의의 객체를 동적으로 생성할 수 있다.
+
+~~~java
+ @Override
+  public List<OrderDto> searchMyStateOrders(
+      OrderSearchCondition orderSearchCondition) {
+    BooleanBuilder builder = new BooleanBuilder();
+    if (orderSearchCondition.getOrdererId() != null) {
+      builder.and(ordererIdEq(orderSearchCondition.getOrdererId()));
+    }
+    if (orderSearchCondition.getOrderState() != null) {
+      builder.and(orderStateEq(orderSearchCondition.getOrderState()));
+    }
+
+    List<OrderDto> result = queryFactory
+      	//Proejctions.construector()를 통해 OrderDto의 생성자를 아래의 파라미터로 호출한다.
+        .select(Projections.constructor(OrderDto.class,
+            order.orderNumber,
+            order.orderState,
+            order.shippingInfo,
+            order.totalAmounts,
+            order.orderer.name,
+            order.createdAt
+        ))
+        .from(order)
+        .where(builder)
+        .fetch();
+
+    return result;
+  }
+~~~
+
+- **JPQL 이든 Querydls이든 동적으로 인스턴스를 생성하면 가져갈 수 있는 이점은 조회전용 모델을 만들기 때문에 표현영역을 통해 사용자에게 적합한 데이터를 보여줄 수 있다.**
+
+#### 5.10은 스킵
