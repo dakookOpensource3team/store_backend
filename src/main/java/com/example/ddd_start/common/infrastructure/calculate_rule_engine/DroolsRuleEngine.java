@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class DroolsRuleEngine implements CalculateRuleEngine {
 
-  public void evalutate(List<?> facts) {
+  public void evaluate(List<?> facts) {
     final String session = "droolsRuleSession";
     log.info(session + "를 이용하여 할인 금액을 계산합니다.");
   }

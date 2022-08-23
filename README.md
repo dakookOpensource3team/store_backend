@@ -1602,3 +1602,54 @@ from(Entity)
 - **JPQL 이든 Querydls이든 동적으로 인스턴스를 생성하면 가져갈 수 있는 이점은 조회전용 모델을 만들기 때문에 표현영역을 통해 사용자에게 적합한 데이터를 보여줄 수 있다.**
 
 #### 5.10은 스킵
+
+
+
+### 6. 응용 서비스와 표현 영역
+
+#### 6.1 표현 영역과 응용 영역
+
+- 도메인 영역을 잘 구현하지 않으면 사용자의 요구를 충족하는 제대로 된 소프트웨어를 만들지 못한다.
+- 하지만 도메인 영역만 잘 만든다고 끝이 아니다. **도메인이 제 기능을 하려면 사용자와 도메인을 연결해주는 매개체가 필요하다.**
+- 응용 영역과 표현 영역이 사용자와 도메인을 연결해주는 매개체 역할을 한다.
+
+![ch6_1](./img/ch6_1.jpeg)
+
+- **표현 영역은 사용자의 요청을 해석한다.**
+
+  - 사용자가 웹 브라우저에서 폼에 ID와 암호를 입력한 뒤에 전송 버튼을 클릭하면 요청 파라미터를 포함한 HTTP요청을 표현 영역에 전달한다.
+  - 요청 받은 표현 영역은 URL, 요청 파라미터, 쿠키, 헤더 등을 이용해서 사용자가 실행하고 싶은 기능을 판별하고 그 기능을 제공하는 응용서비스를 실행한다.
+
+- **응용 영역의 서비스는 실제 사용자가 원하는 기능을 제공한다.**
+
+  - 사용자가 회원 가입을 요청했다면 실제 그 요청을 위한 기능을 제공하는 주체는 응용 서비스에 위치한다.
+
+  - 응용 서비스는 기능을 실행하는 데 필요한 입력 값을 메서드 인자로 받고 실행 결과를 리턴한다.
+
+  - 응용 서비스의 메서드가 요구하는 파미터와 표현영익 사용자로부터 전달받은 데이터는 형식이 일치하지 않기 때문에 표현 영역은 응용 서비스가 요구 하는 형식으로 사용자 요청을 변환한다.
+
+    - 예를 들면 표현영역의 코드는 다음과 같이 폼에 입력한 요청 파라미터값을 사용해서 응용 서비스가 요구하는 객체를 생성 한뒤, 응용 서비스의 메서드를 호출한다.
+
+    ~~~java
+    @PostMapping("/members/join")
+      public ResponseEntity join(@RequestBody JoinMemberRequest req) {
+        String email = req.getEmail();
+        String password = req.getPassword();
+        String name = req.getName();
+        AddressRequest addressReq = req.getAddressReq();
+    
+        joinResponse joinResponse = memberService.joinMember(
+            new joinRequest(email, password, name, addressReq));
+    
+        return new ResponseEntity<MemberResponse>(
+            new MemberResponse(
+                joinResponse.getMemberId(), joinResponse.getName(), "회원가입을 축하드립니다."),
+            HttpStatus.ACCEPTED);
+      }
+    ~~~
+
+    - 응용 서비스를 실행한 뒤에 표현영역은 실행결과를 사용자에게 알맞은 형식으로 응답한다.
+      - ex) HTML, JSON
+
+  - 사용자와 상호작용은 표현영역이 처리하기때문에, 응용서비스는 표현영역에 의존하지 않는다, 단지 기능 실행에 필요한 입력 값을 받고 실행결과만 리턴하면 된다.
+

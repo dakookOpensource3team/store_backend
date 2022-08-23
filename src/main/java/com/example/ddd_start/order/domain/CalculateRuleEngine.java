@@ -4,5 +4,5 @@ import java.util.List;
 
 public interface CalculateRuleEngine {
 
-  public void evalutate( List<?> facts);
+  public void evaluate( List<?> facts);
 }
