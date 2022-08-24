@@ -1653,3 +1653,102 @@ from(Entity)
 
   - 사용자와 상호작용은 표현영역이 처리하기때문에, 응용서비스는 표현영역에 의존하지 않는다, 단지 기능 실행에 필요한 입력 값을 받고 실행결과만 리턴하면 된다.
 
+
+
+#### 6.2 응용 서비스의 역할
+
+- **응용 서비스는 사용자가 요청한 기능을 실행한다. 응용 서비스는 사용자의 요청을 처리하기 위해 레포지토리에서 도메인 객체를 가져와야 한다.**
+
+- 응용 서비스의 주요 역할 은 도메인 객체를 사용해서 사용자의 요청을 처리하는 것이므로 표현 영역 입장에서 보았을 때 응용 서비스는 도메인 영역과 표현 영역을 연결해주는 창구 역할을 한다.
+
+- 응용 서비스는 주로 도메인 객체 간의 흐름을 제어하기 때문에 단순한 형태를 갖는다.
+
+  ~~~java
+  public Result doSomeFunc(SomeReq req){
+  	//1. 레포지토리에서 애그리거트를 구한다.
+   	SomeAgg agg = someAggRepository.findById(req.getId());
+   	checkNull(agg);
+   	
+   	//2. 애그리거트의 도메인 기능을 실행한다.
+   	add.doFunc(req.getValue());
+   	
+   	//3. 결과를 리턴한다.
+   	reutrn createSuccessResult(agg);
+  }
+  ~~~
+
+- 새로운 애그리거트를 생성하는 응용 서비스 역시 간단하다.
+
+  ~~~java
+  public Result doSomeCreation(CreateSomeReq req){
+  	//1. 데이터 중복 등 데이터가 유효한지 검사한다.
+  	validate(req);
+   	
+   	//2. 애그리거트를 생성한다.
+   	SomeAgg newAgg = createSome(req);
+   	
+   	//3. 레포지토리에서 애그리거트를 저장한다.
+   	someAggRepository.save(newAgg);
+   	
+   	//4. 결과를 리턴한다.
+   	reutrn createSuccessResult(agg);
+  }
+  ~~~
+
+- 응용 서비스가 복잡하다면 응용서비스에서 도메인 로직의 일부를 구현하고 있을 가능성이 높다.
+
+  - 응용 서비스가 도메인 로직을 일부 구현하면 코드 중복, 로직 분산등 코드 품질에 안좋은 영향을 줄 수 있다.
+
+- 응용 서비스는 트랜잭션 처리도 담당한다. 응용 서비스는 도메인의 상태 변경을 트랜잭션으로 처리한다.
+
+  ~~~java
+  @Transactional
+  public void blockMembers(Long[] blockingIds) {
+     if (blockingIds == null | blockingIds.length == 0) {
+       return;
+     }
+      
+    List<Member> members = memberRepository.findByIdIn(blockingIds);
+    members.forEach(
+      Member::block
+    );
+  }
+  ~~~
+
+  - 상단의 메소드가 트랜잭션 범위에서 실행되지 않는다고 가정할 때, member 객체의 block() 메서드를 실행중에 문제가 발생하면 일부 Member만 차단되어, 데이터 일관성이 깨진다. 이런 상황이 발생하지 않으려면 트랜잭션 범위에서 롤백을 하여 전체 데이터가 아예 반영이 안되도록 하여 원자성을 지켜야 한다.
+
+#### 6.2.1 도메인 로직 넣지 않기
+
+- 도메인 로직은 도메인 영역에 위치하고 응용 서비스는 도메인 로직을 구현하지 않는다.
+
+- 암호 변경 기능을 위한 응용 서비스느 Member 애그리거트와 관련된 레포지토리를 이용해서 도메인 객체간의 실행 흐름을 제어한다.
+
+  ~~~java
+  public class ChangePasswordService{
+  	public void changePassword(Long memberId, String oldPw, String newPw){
+  		Member member = memberRepository.findById(memberId);
+  		checkMemberExists(member);
+  		member.changePassword(oldPw, newPw)
+  	}
+  }
+  ~~~
+
+- Member 애그리거트는 암호를 변경하기전에 기존 암호를 올바르게 입력했는지 확인하는 로직을 구현한다.
+
+  ~~~java
+  {
+  	if(this.pw.match(oldPw)) throw new BasPasswordException();
+  }
+  ~~~
+
+- 기존 암호를 올바르게 입력했는지를  확인하는 것은 도메인의 핵심 로직이기 때문에 응용서비스에서 이 로직을 구현하면 안된다.
+- 도메인 로직을 도메인 영역과 응용 서비스에서 분산해서 구현하면 코드 품질에 문제가 발생한다.
+  - 문제점은 아래와 같다.
+    - 코드의 응집성이 떨어진다. 
+      - 도메인 데이터와 그 데이터를 조작하는 도메인 로직이 한 영역에 위치하지 않고 서로 다른 영역에 위치한다는 것은 도메인 로직을 파악하기 위해 여러 영역을 분석해야 한다는 것을 의미한다.
+    - 여러 응용 서비스에서 동일한 도메인 로직을 구현할 가능성이 높아진다.
+- 코드 중복을 막기 위해 응용 서비스 영ㅇ역에 별도의 보조 클래스를 만들 수 있지만, 애초에 도메인 영역에 암호 확인 기능을 구현했으면 응용 서비스는 그 기능을 사용만 하면 된다.
+- 응용 서비스에서는 도메인이 제공하는 기능을 사용하면 응용 서비스가 도메인 로직을 구현하면서 발생하는 코드 중복 문제를 발생하지 않는다.
+- 일부 도메인 로직이 응용 서비스에 출현하면서 발생하는 두가지 문제(응집도가 떨어지고, 코드 중복 발생)은 결과적으로 코드 변경을 어렵게 만든다.
+  - 소프트웨어가 가져야할 중요한 경쟁 요소중 하나는 변경 용이성인데, 변경이 어렵다는 것은 그만큼 소프트웨어의 가치가 떨어진다는 것을 으미한다.
+  - 소프트웨어의 가치를 높이려면 도메인 로직을 도메인 영역에 모아서 코드 중복을 줄이고 응집도를 높여야 한다.

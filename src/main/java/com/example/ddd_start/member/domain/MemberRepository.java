@@ -11,4 +11,5 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
 
   Page<Member> findPageMemberByNameLike(String name, Pageable pageable);
 
+  List<Member> findByIdIn(Long[] blockingIds);
 }

@@ -61,6 +61,18 @@ public class MemberService {
         pageRequest);
   }
 
+  @Transactional
+  public void blockMembers(Long[] blockingIds) {
+    if (blockingIds == null | blockingIds.length == 0) {
+      return;
+    }
+
+    List<Member> members = memberRepository.findByIdIn(blockingIds);
+    for (Member member : members) {
+      member.block();
+    }
+  }
+
   public void findPassword(Long id) {
     Member member = memberRepository.findById(id).orElseThrow(NoSuchElementException::new);
     String encryptedPassword = member.getPassword().getPassword();

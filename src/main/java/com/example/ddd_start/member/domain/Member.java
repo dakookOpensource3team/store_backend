@@ -30,11 +30,13 @@ public class Member {
   private Password password;
   @Embedded
   private Address address;
+  private Boolean blocked;
 
   public Member(String name, String email, Password password, Address address) {
     this.name = name;
     this.password = password;
     this.address = address;
+    this.blocked = false;
   }
 
   public void changePassword(String currentPassword, String changePassword) {
@@ -46,5 +48,9 @@ public class Member {
 
   public void changeAddress(Address address) {
     this.address = address;
+  }
+
+  public void block() {
+    this.blocked = true;
   }
 }
