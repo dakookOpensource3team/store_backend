@@ -1752,3 +1752,110 @@ from(Entity)
 - 일부 도메인 로직이 응용 서비스에 출현하면서 발생하는 두가지 문제(응집도가 떨어지고, 코드 중복 발생)은 결과적으로 코드 변경을 어렵게 만든다.
   - 소프트웨어가 가져야할 중요한 경쟁 요소중 하나는 변경 용이성인데, 변경이 어렵다는 것은 그만큼 소프트웨어의 가치가 떨어진다는 것을 으미한다.
   - 소프트웨어의 가치를 높이려면 도메인 로직을 도메인 영역에 모아서 코드 중복을 줄이고 응집도를 높여야 한다.
+
+#### 6.3 응용 서비스의 구현
+
+- 응용 서비스는 표현 영역과 도메인 영역을 연결하는 매개체 역할을 하는데 이는 디자인 패턴에서 파사드와 같은 역할을 한다. 응용 서비스 자체는 복잡한 로직을 수행하지 않기 때문에 응용 서비스의 구현은 어렵지 않다. 
+
+#### 6.3.1 응용 서비스의 크기
+
+- 응용 서비스를 구현할 때, 응용 서비스의 크기를 고려해야 한다.
+
+  - 회원 도메인을 예로 들 때, 회원 가입하기, 회원 탈퇴하기, 회원 암호 변경하기, 비밀번호 초기화하기와 같은 기능을 구현하기 위해 도메인 모델을 사용하게 된다.
+
+  - 이 경우 응용 서비스는 다음 두가지 방법중 한가지 방식으로 구현한다.
+
+    - **한 응용 서비스 클래스에 회원 도메인의 모든 기능 구현하기**
+    - **구분되는 기능별로 응용 서비스 클래스를 따로 구현하기**
+
+  - 회원과 관련된 기능을 한클래스에서 모두 구현하면 다음과 같은 모습을 갖는다. 각 메서드를 구현하는데 필요한 레포지토리나 도메인 서비스는 필드로 추가한다.
+
+    ~~~java
+    @Slf4j
+    @Service
+    @RequiredArgsConstructor
+    public class MemberService {
+    
+      private final MemberRepository memberRepository;
+      private final PasswordEncryptionEngine passwordEncryptionEngine;
+    
+      @Transactional
+      public joinResponse joinMember(joinRequest req) {...}
+      @Transactional
+      public void changePassword(Long id, String curPw, String newPw) {...}
+      @Transactional
+      public void initalizePassword(Long id) {...}
+      @Transactional
+      public void leave(Long id, String curPw) {...}
+      ...
+    }
+    ~~~
+
+  - 한 도메인과 관련된 기능을 구현한 코드가 한클래스에 위치하므로 각 기능에서 동일 로직에 대한 코드 중복을 제거할 수 있다는 장점이 있다.
+
+    ~~~java
+    private Notirifer notifier;
+    @Transactional
+    public void changePassword(Long id, String curPw, String newPw) {
+      findExistMember(id);
+      ...
+    }
+    @Transactional
+    public void initalizePassword(Long id) {
+      findExistMember(id);
+      ...
+      notifier.notifyNewPassword(member, newPassword);
+    }
+    
+    
+    private Member findExistMember(Long memberId){
+    	Member member = memberRepository.findById(memberId);
+    	if(member == null) throw new NoMemberException(memberId);
+      return member;
+    }
+    ~~~
+
+  - 위 코드와 같이 member가 존재하는지 확인하는 중복된 로직을 하나의 메서드로 쉽게 제거할 수 있다.
+
+- 각 기능에서 동일한 로직을 위한 코드 중복을 제거하기 쉽다는 것이 장점이라면 한 서비스 클래스의 크기(코드 줄 수)가 커진다는 것은 이 방식의 단점이다.
+
+- 코드 크기가 커지면 연관성이 적은 코드가 한 클래스에 함께 위치할 가능성이 높아지게 되는데 결과적으로 관련 없는 코드가 뒤섞여 코드를 이해하는데 방해가 된다.
+
+  - 예를 들어 위코드에서 암호 초기화 기능을 구현한 initalizePassword() 메서드는 암호 초기화 후에 신규 암호를 사용자에게 통지하기 위해 Notifier를 사용하는데, 이 Notifier는 암호 변경 기능을 구현한 changePassword()에서는 필요하지 않는 기능이다.
+  - 하지만 Notifier가 필드로 존재하기 때문에 이 Notifier가 어떤 기능 때문에 필요한지 확인하려면 각 기능을 구현한 코드를 뒤져야 한다.
+  - 게다가 한 클래스에 코드가 모이기 시작하면 엄연히 분리하는 것이 좋은 상황임에도 습관적으로 기존에 존재하는 클래스에 억지로 끼워 넣게 된다. -> 이건은 코드를 점점 얽히게 만들어 코드 품질을 낮추는 결과를 초래한다.(스파게티 코드?)
+
+- 구분되는 기능 별로 서비스 클래스를 구현하는 방식은 한 응용 서비스 클래스에서 한 개내지 2~3개의 기능을 구현한다.
+
+  ~~~java
+  public class ChangePasswordService {
+  
+    private MemberRepository memberRepository;
+  
+    public void changePassword(Long id, String curPw, String newPw) throws NoMemberFoundException {
+      Member member = memberRepository.findById(id).orElseThrow(NoMemberFoundException::new);
+      member.changePassword(curPw, newPw);
+    }
+  }
+  ~~~
+
+  - 이 방식을 사용하면 클래스 개수는 많아지지만 한 클래스에 관련 기능을 모두 구현하는 것과 비교해서 코드 품질을 일정 수준으로 유지하는 데 도움이 된다. 
+  - 또한 각 클래스 별로 필요한 의존 객체만 포함하므로 다른 기능을 구현한 코드에 영향을 받지 않는다.
+
+- 각 기능 마다 동일한 로직을 구현할 경우 하나의 Helper 또는 Support 클래스를 두어, 해당 클래스에서 공통 로직을 구현하게 하면 된다.
+
+  ~~~java
+  public class MemberServiceHelper{
+  	public static Member findExistMember(MemberRepository memberRepository, Long memberId) {
+      Member member = memberRepository.findById(memberId);
+      if(member == null) throw new NoMemberException(memberId);
+      return member;
+  	}
+  }
+  ~~~
+
+- 책의 필자는 한 클래스가 여러 역할을 갖는 것보다 각 클래스마다 구분되는 역할을 갖는것을 선호한다고 한다.
+
+  - SOLID 의 SRP(단일 책임 원치)랑 비슷한것 같다. 하나의 클래스는 하나의 역할을 가져야 한다.
+
+- 한 도메인과 관련된 기능을 하나의 응용 서비스 클래스에서 모두 구현하는 방식보다, 구분되는 기능을 별도의 서비스 클래스로 구현하는 방식을 사용한다.

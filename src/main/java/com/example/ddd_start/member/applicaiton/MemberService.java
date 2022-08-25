@@ -73,11 +73,4 @@ public class MemberService {
     }
   }
 
-  public void findPassword(Long id) {
-    Member member = memberRepository.findById(id).orElseThrow(NoSuchElementException::new);
-    String encryptedPassword = member.getPassword().getPassword();
-    log.info("encryptedPassword: " + encryptedPassword);
-    String password = passwordEncryptionEngine.decryptKey(encryptedPassword);
-    log.info(password);
-  }
 }
