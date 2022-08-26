@@ -1,15 +1,14 @@
 package com.example.ddd_start.member.applicaiton;
 
 import com.example.ddd_start.common.domain.Address;
-import com.example.ddd_start.member.applicaiton.model.AddressRequest;
-import com.example.ddd_start.member.applicaiton.model.joinRequest;
+import com.example.ddd_start.member.applicaiton.model.AddressCommand;
+import com.example.ddd_start.member.applicaiton.model.joinCommand;
 import com.example.ddd_start.member.applicaiton.model.joinResponse;
 import com.example.ddd_start.member.domain.Member;
 import com.example.ddd_start.member.domain.MemberRepository;
 import com.example.ddd_start.member.domain.Password;
 import com.example.ddd_start.member.domain.PasswordEncryptionEngine;
 import java.util.List;
-import java.util.NoSuchElementException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -27,8 +26,8 @@ public class MemberService {
   private final PasswordEncryptionEngine passwordEncryptionEngine;
 
   @Transactional
-  public joinResponse joinMember(joinRequest req) {
-    AddressRequest addressReq = req.getAddressReq();
+  public joinResponse joinMember(joinCommand req) {
+    AddressCommand addressReq = req.getAddressReq();
     Address address = new Address(addressReq.getCity(), addressReq.getGuGun(), addressReq.getDong(),
         addressReq.getBunji());
     String encryptedPassword = passwordEncryptionEngine.encryptKey(req.getPassword());

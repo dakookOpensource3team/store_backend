@@ -1,6 +1,6 @@
 package com.example.ddd_start.member.presentation.model;
 
-import com.example.ddd_start.member.applicaiton.model.AddressRequest;
+import com.example.ddd_start.member.applicaiton.model.AddressCommand;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -13,5 +13,5 @@ public class JoinMemberRequest {
   String email;
   String password;
   String name;
-  AddressRequest addressReq;
+  AddressCommand addressReq;
 }

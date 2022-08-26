@@ -7,9 +7,10 @@ import lombok.NoArgsConstructor;
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor
-public class AddressRequest {
-  private String city;
-  private String guGun;
-  private String dong;
-  private String bunji;
+public class joinCommand {
+
+  String email;
+  String password;
+  String name;
+  AddressCommand addressReq;
 }

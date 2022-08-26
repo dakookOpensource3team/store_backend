@@ -1859,3 +1859,99 @@ from(Entity)
   - SOLID 의 SRP(단일 책임 원치)랑 비슷한것 같다. 하나의 클래스는 하나의 역할을 가져야 한다.
 
 - 한 도메인과 관련된 기능을 하나의 응용 서비스 클래스에서 모두 구현하는 방식보다, 구분되는 기능을 별도의 서비스 클래스로 구현하는 방식을 사용한다.
+
+#### 6.3.2 응용 서비스의 인터페이스와 클래스
+
+- 응용 서비스를 구현할 때 인터페이스가 필요한지에 대해 논의 한다.
+- 인터페이스가 필요한 몇가지 상황이 있다.
+  - 구현 클래스가 여러개인 경우
+    - 구현클래스가 다수 존재하거나 런타임에 구현 객체를 교체해야 할 때 인터페이스를 유용하게 사용할 수 있다.
+    - 그런데 응용 서비스는 런타임에 교체하는 경우가 거의 없고 한 응용 서비스의 구현 클래스가 두개인 경우도 드물다.
+    - 이렇듯 인터페이스와 클래스를 따로 구현하면 소스 파일만 많아지고 구현 클래스에 대한 간접 참조가 증가해서 전체 구조가 복잡해진다.
+  - 테스트 주도 개발 (Test Driven Development)를 즐겨하고 표현 영역부터 개발을 시작한다면, 미리 응용 서비스를 구현할 수 없으므로 응용 서비스의 인터페이스부터 작성하게 될 것이다.
+    - 미리 응용 서비스를 구현할 수 없으므로 응용 서비스의 인터페이스부터 작성하게 될 것이다.
+  - 표현 영역이 아닌 도메인 영역이나 응용 영역의 개발을 먼저 시작하면 응용 서비스 클래스가 먼저 만들어진다.
+    - 표현 영역의 단위 테스트를 진행할 때, 책이 이해가 안되지만 응용 서비스 객체를 생성해도 되고, 또는 Mock을 이용하여 테스트용 대역 객체를 만들 수 있다.
+    - 이는 결과적으로 응용 서비스에 대한 인터페이스 필요성을 약화시킨다.
+
+
+
+#### 6.3.3 메서드 파라미터와 값 리턴
+
+- 응용 서비스가 제공하는 메서드는 도메인을 이용해서 사용자가 요구한 기능을 실행하는데 필요한 값을 파라미터로 전달받아야 한다.
+
+  - 예를 들어 암호 변경 응용 서비스는 암호 변경 기능을 구현하는데 필요한 회원ID, 현재 암호, 변경할 암호를 파라미터로 전달받는다.
+
+    ~~~java
+    @Transactional
+    //암호 변경 기능 구현에 필요한 값을 파라미터로 전달받음
+    public void changePassword(Long id, String curPw, String newPw) {
+      findExistMember(id);
+      ...
+    }
+    ~~~
+
+  - 위 코드처럼 필요한 각 값을 개별 파라미터로 전달 받을 수 있고, 다음 코드처럼 값 전달을 위한 별도 데이터 클래스를 만들어 전달 받을 수 있다.
+
+    ~~~java
+    @Getter
+    @RequiredArgsConstructor
+    public class ChangePasswordRequest {
+    
+      private final Long memberId;
+      private final String curPw;
+      private final String newPw;
+    }
+    ~~~
+
+  - 응용 서비스는 파라미터로 전달 받은 데이터를 사용해서 필요한 기능을 구현하면 된다.
+
+    ~~~java
+    public void changePassword(ChangePasswordRequest req) throws NoMemberFoundException {
+        Member member = memberRepository.findById(req.getMemberId())
+            .orElseThrow(NoMemberFoundException::new);
+        member.changePassword(req.getCurPw(), req.getNewPw());
+    }
+    ~~~
+
+  - 스프링 MVC와 같은 웹 프레임워크는 웹 요청 파라미터를 자바 객체로 변환하는 기능을 제공하므로 응용 서비스에 데이터로 전달할 요청 파라미터가 두 개 이상 존재하면 데이터 전달을 위한 별도 클래스를 사용하는 것이 편리하다.
+
+    ~~~java
+    @GetMapping("/members/change-password")
+    public ResponseEntity changePassword(ChangePasswordRequest req) throws NoMemberFoundException {
+      changePasswordService.changePassword(
+        new ChangePasswordCommand(
+          req.getMemberId(),
+          req.getCurPw(),
+          req.getNewPw()));
+    
+      return new ResponseEntity<>(HttpStatus.ACCEPTED);
+    }
+    ~~~
+
+  - 응용 서비스의 결과를 표현 영역에서 사용해야 하면 응용 서비스 메서드의 결과로 필요한 데이터를 리턴한다. 
+
+  - 결과 데이터가 필요한 대표적인 예가 식별자다.
+
+    - 온라인 쇼핑몰은 주문 후 주문 상세 내역을 볼 수 있는 링크를 바로 보여준다. 이링크를 제공하려면 방금 요청한 주문의 번호를 알아야 한다. 이 요구를 충족하려면 주문 응용 서비스는 주문 요청 처리 후에 주문번호를 결과로 리턴해야 한다.
+
+      ~~~java
+      @Transactional
+      public Long placeOrder(PlaceOrderCommand placeOrderCommand) {
+        Order order = new Order(placeOrderCommand.getOrderLines(), placeOrderCommand.getShippingInfo(),
+        placeOrderCommand.getOrderer());
+        orderRepository.save(order);
+          //응용 서비스 실행 후 표현 영역에서 필요한 값 리턴
+        return order.getId();
+      }
+      ~~~
+
+    - 위 코르를 사용하는 표현 영역 코드는 응용 서비스가 리턴한 값을 사용해서 사용자에게 알맞은 결과를 보여줄 수 있게 된다.
+
+  - 응용 서비스에서 애그리거트 객체를 그대로 리턴할 수 있다. 허나 나는 비추한다.
+
+    - 왜냐하면 표현영역에서 도메인에 대한 의존이 생겨버려 코드의 품질이 떨어진다.
+
+  - 응용서비스에서 애그리거트 자체를 리턴하면 코딩은 편할 수 있지만, 도메인 로직 실행을 응용서비스와 표현 영역 두 곳에서할 수 있게 된다. 이것은 기능 실행 로직을 응용 서비스와 표현 영역에 분산시켜 코드의 응집도를 낮추는 원인이 된다.
+
+- **응용 서비스는 표현 영역에서 필요한 데이터만 리턴하는 것이 기능 실행 로직의 응집도를 높이는 확실한 방법이다**.

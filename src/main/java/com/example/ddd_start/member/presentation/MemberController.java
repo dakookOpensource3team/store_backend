@@ -1,14 +1,15 @@
 package com.example.ddd_start.member.presentation;
 
+import com.example.ddd_start.common.domain.exception.NoMemberFoundException;
+import com.example.ddd_start.member.applicaiton.ChangePasswordService;
 import com.example.ddd_start.member.applicaiton.MemberService;
-import com.example.ddd_start.member.applicaiton.model.AddressRequest;
-import com.example.ddd_start.member.applicaiton.model.joinRequest;
+import com.example.ddd_start.member.applicaiton.model.AddressCommand;
+import com.example.ddd_start.member.applicaiton.model.ChangePasswordCommand;
+import com.example.ddd_start.member.applicaiton.model.joinCommand;
 import com.example.ddd_start.member.applicaiton.model.joinResponse;
-import com.example.ddd_start.member.domain.Member;
-import com.example.ddd_start.member.domain.MemberRepository;
+import com.example.ddd_start.member.presentation.model.ChangePasswordRequest;
 import com.example.ddd_start.member.presentation.model.JoinMemberRequest;
 import com.example.ddd_start.member.presentation.model.MemberResponse;
-import java.util.NoSuchElementException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,16 +23,17 @@ import org.springframework.web.bind.annotation.RestController;
 public class MemberController {
 
   private final MemberService memberService;
+  private final ChangePasswordService changePasswordService;
 
   @PostMapping("/members/join")
   public ResponseEntity join(@RequestBody JoinMemberRequest req) {
     String email = req.getEmail();
     String password = req.getPassword();
     String name = req.getName();
-    AddressRequest addressReq = req.getAddressReq();
+    AddressCommand addressReq = req.getAddressReq();
 
     joinResponse joinResponse = memberService.joinMember(
-        new joinRequest(email, password, name, addressReq));
+        new joinCommand(email, password, name, addressReq));
 
     return new ResponseEntity<MemberResponse>(
         new MemberResponse(
@@ -39,9 +41,13 @@ public class MemberController {
         HttpStatus.ACCEPTED);
   }
 
-  @GetMapping("/members/password")
-  public ResponseEntity getPassword(Long id) {
-    memberService.findPassword(id);
+  @GetMapping("/members/change-password")
+  public ResponseEntity changePassword(ChangePasswordRequest req) throws NoMemberFoundException {
+    changePasswordService.changePassword(
+        new ChangePasswordCommand(
+            req.getMemberId(),
+            req.getCurPw(),
+            req.getNewPw()));
 
     return new ResponseEntity<>(HttpStatus.ACCEPTED);
   }

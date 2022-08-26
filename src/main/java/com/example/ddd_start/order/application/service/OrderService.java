@@ -4,6 +4,7 @@ import com.example.ddd_start.common.domain.exception.NoOrderException;
 import com.example.ddd_start.member.domain.Member;
 import com.example.ddd_start.member.domain.MemberRepository;
 import com.example.ddd_start.order.application.model.ChangeOrderShippingInfoCommand;
+import com.example.ddd_start.order.application.model.PlaceOrderCommand;
 import com.example.ddd_start.order.domain.Order;
 import com.example.ddd_start.order.domain.OrderRepository;
 import com.example.ddd_start.order.domain.dto.OrderDto;
@@ -52,5 +53,13 @@ public class OrderService {
     allOrder.forEach(
         e -> log.info("id: " + e.getOrderNumber())
     );
+  }
+
+  @Transactional
+  public Long placeOrder(PlaceOrderCommand placeOrderCommand) {
+    Order order = new Order(placeOrderCommand.getOrderLines(), placeOrderCommand.getShippingInfo(),
+        placeOrderCommand.getOrderer());
+    orderRepository.save(order);
+    return order.getId();
   }
 }
