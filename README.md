@@ -2329,5 +2329,43 @@ from(Entity)
 
 - 이해도가높지 않아 프레임워크 확장을 원하는 수준으로 할 수 없다면 프레임워크를 사용하는 대신 도메인에 맞는 권한 검사 기능을 직접 구현하는 것이 코드 유지보수에 유리하다.
 
-- 
+
+
+#### 6.7 조회 전용 기능과 응용 서비스
+
+- 서비스에서 조회 전용 기능을 사용하면 서비스 코드가 다음과 같이 단순히 조회 전용 기능을 호출하는 형태로 끝날 수 있다.
+
+  ~~~java
+  public class OrderListService {
+  	public List<OrderView> getOrderList(Long ordererId) {
+  		return orderViewDao.selectByOrderer(ordererId);
+  	}
+  }
+  ~~~
+
+- 서비스에서 수행하는 추가적인 로직이 없을 뿐더러 단일 쿼리만 실행하는 조회 전용 기능이여서 트랜잭션은 readOnly = true로만 조회 하면된다.(질문 - 책에서는 트랜잭션이 필요하지 않다고 한다. 이해가 안간다.)
+
+- 책에서는 이 경우라면 굳이 서비스를 만들 필요없이 표현 영역에서 바로 조회 전용 기능을 사용해도 문제가 없다고 한다.
+
+  ~~~
+  public class OrderController {
+  	private OrderViewDao orderViewDao
+  	
+  	@RequestMapping("/myorders")
+  	public String list(ModelMap model) {
+  		Long ordererId = SecurityContext.getAuthentication().getId();
+  		List<OrderView> orders = orderViewDao.selectByOrderer(ordererId);
+  		model.addAttribute("orders", orders);
+  		return "order/list"
+  	}
+  }
+  ~~~
+
+- 응용 서비스를 항상 만들었던 개발자는 컨트롤러와 같은 표현 영역에서 응용 서비스 없이 조회 전용 기능에 접근하는것이 이상하게 느껴질 수 있다.
+
+  - 하지만 응용 서비스가 사용자 요청 기능을 실행하는 데 별 다른 기여를 하지 못한다면 굳이 서비스를 만들지 않아도 된다.
+
+    > 허나 나는 그래도 서비스를 만들겠다 왜냐하면 표현 영역이 도메인에 의존하기 때문에 코드 품질이 떨어지고 유지보수성이 불편하기 때문에 조회 전용에 대해서도 결국엔 하나가 아니라 여러개가 될 수 있으니까 응집성이 높아지게 하나로 모으는게 더 좋을 것 같다.
+
+<img src="./img/presentation3.JPG" alt="presentation3" style="zoom:33%;" />
 
