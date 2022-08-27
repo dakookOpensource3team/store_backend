@@ -1955,3 +1955,379 @@ from(Entity)
   - 응용서비스에서 애그리거트 자체를 리턴하면 코딩은 편할 수 있지만, 도메인 로직 실행을 응용서비스와 표현 영역 두 곳에서할 수 있게 된다. 이것은 기능 실행 로직을 응용 서비스와 표현 영역에 분산시켜 코드의 응집도를 낮추는 원인이 된다.
 
 - **응용 서비스는 표현 영역에서 필요한 데이터만 리턴하는 것이 기능 실행 로직의 응집도를 높이는 확실한 방법이다**.
+
+
+
+#### 6.3.4 표현 영역에 의존하지 않기
+
+- **응용 서비스 파라머티 타입을 결정할 때 주의할 점은 표현 영역과 관련된 타입을 사용하면 안된다.**
+
+  - 예를 들어 표현영역의 HttpServletRequest나 Session을 응용 서비스 파라미터로 전달하면 안도니다.
+
+  ~~~java
+  @PostMapping
+  public String submti(HttpServletRequest req){
+  	//절대 응용 서비스에 파라미터로 넘기면 안된다!
+  	changePasswordService.changPassword(request);
+  }
+  ~~~
+
+- 응용 서비스에서 표현 영역에 대한 의존이 발생하면 응용 서비스 단독으로 테스트하기가 어려워 진다.
+
+  - 게다가 표현 영역의 구현이 변경되면 응용 서비스의 구현도 함께 변경해야 하는 문제도 발생한다.
+
+- 위의 문제 보다 더 심각한 것은 응용 서비스가 표현 영역의 역할까지 대신하는 상황이 벌어질 수 있다.
+
+  - 예를 들어 응용 서비스에 파라미터로 HttpServletRequest를 전달했는데 응용 서비스에서 HttpSession을 생성하고 세션에 인증과 관련된 정보를 담는다고 해보자
+
+    ~~~java
+    public void authenticate(HttpServletRequest request) {
+     	String id = request.getParmater("id");
+     	String password = request.getPassword("password");
+     	if(checkIdPasswordMatching(id, password)) {
+     		// 응용 서비스에서 표현 영역의 상태 처리
+     		HttpSession session = request.getSession();
+     		session.setAttribute("auth", new Authentication(id));
+     	}
+    }
+    ~~~
+
+  - HttpSession이나 쿠키는 표현 영역의 상태에 해당하는데 이 상태를 응용 서비스에서 변경해버리면 표현 영역의 코드만으로 표현 영역의 상태가 어떻게 변경되는지 추적하기 어렵다.
+  - 즉 표현 영역의 응집도가 깨지는 것이다. 이것은 결과적으로 코드 유지보수 비용을 늘리고, 품질을 떨어뜨린다.
+
+- 문제가 발생하지 않도록 하려면 철저하게 응용 서비스가 표현 영역의 기술을 사용하지 않도록 해야한다. 이를 지키기 위한 가장 쉬운 방법은 서비스 메서드의 파라미터와 리턴타입으로 표현 영역의 구현 기술을 사용하지 않는 것이다.
+
+
+
+#### 6.3.5 트랜잭션 처리
+
+- 어떤 기능이 실행되고 화면에는 기능이 성공했다고 하더라도, 해당 기능에 대한 변수들이 DB에 반영이 되지 않으면 추후에 해당 값을 참조할 때, 기능이 정상적으로 동작하지 않는다.
+
+  - 위와 트랜잭션과 관련된 문제는 트랜잭션을 관리한느 응용 서비스의 중요한 역할이다.
+
+    > 트랜잭션이란: 작업의 단위 이다. 성질로는 ACID가 있다.
+
+- 스프링과 같은 프레임워크가 제공하는 트랜잭션 관리기능을 이용하면 쉽게 트랜잭션을 처리할 수 있다.
+
+  ~~~java
+  @Transactional
+  public void changePassword(ChangePasswordRequest req){
+  	Member member = memberRepository.findById(req.getMemberId())
+          .orElseThrow(NoMemberFoundException::new);
+  	member.changePassword(req.getCurPw(), req.getNewPw());
+  }
+  ~~~
+
+- 프레임워크가 제공하는 트랜잭션 기능을 적극 사용하는 것이 좋다. 프레임워크가 제공하는 규칙을 따르면 간단한 설정만으로 트랜잭션을 시작하여 커밋하고 익셉션이 발생하면 롤백 할 수 있다. 
+
+  >  (커밋과 롤백은 ACID의 A인 Atomic(원자성)과 관련되어 있으며, 트랜잭션은 모두 반영되거나, 작업중 하나라도 실패하면 모두 롤백되어야 한다.)
+
+- 스프링은 @Transactional이 적용된 메서드가 RuntimeException을 발생시키면 트랜잭션을 롤백하고 그렇지 않으면 커밋하므로, 해당 규칙에 따라 트랜잭션 처리 코드를 간결하게 유지할 수 있다.
+
+
+
+#### 6.4 표현 영역
+
+- 표현영역의 책임은 크게 다음과 같다.
+
+  - 사용자가 시스템을 사용할 수 있는 흐름(화면)을 제공하고 제어한다.
+  - 사용자의 요청을 알맞은 응용 서비스에 전달하고 결과를 사용자에게 제공한다.
+  - 사용자의 세션을 관리한다.
+
+- 표현 영역의 첫번 째 책임은 사용자가 시스템을 사용할 수 있도록 알맞은 흐름을 제공하는 것이다.
+
+  - 웹서비스의 표현 영역은 사용자가 요청한 내용을 응답으로 제공한다. 응답에는 다음화면으로 이동할 수 있는 링크나 데이터를 입력하는데 필요한 폼등이 포함된다.
+
+    <img src="./img/presentation1.JPG" style="zoom:33%;" />
+
+  - 사용자는 표현 영역이 제공한 폼에 알맞은 값을 입력하고, 다시 폼을 표현 영역에 전송한다. 표현 영역은 응용 서비스를 이용해서 표현 영역의 요청을 처리하고 그결과를 응답으로 전송한다.
+
+- 표현 영역의 두 번째 책임은 사용자의 요청에 맞게 응용 서비스에 기능 실행을 요청하는 것이다. 화면을 보여주는데 필요한 데이터를 읽거나 도메인의 상태를 변경해야할 때 응용서비스를 사용한다.
+
+  - 이 과정에서 표현 영역은 사용자의 요청 데이터를 응용 서비스가 요구하는 형식으로 변환하고 응용 서비스의 결과를 사용자에게 응답할 수 있는 형식으로 변환한다.
+
+  - 예를 들어 암호 변경을 처리하는 표현 영역은 다음과 같이 HTTP 요청 파라미터로부터 필요한 값을 읽어와 응용 서비스의 메서드가 요구하는 객체로 변환해서 요청을 전달한다.
+
+    ~~~java
+    @GetMapping("/members/change-password")
+    public ResponseEntity changePassword(ChangePasswordRequest req) throws NoMemberFoundException {
+        changePasswordService.changePassword(
+          //응용 서비스가 요구하는 형식으로 변환하여 파라미터를 넘겨준다.
+            new ChangePasswordCommand(
+                req.getMemberId(),
+                req.getCurPw(),
+                req.getNewPw()));
+    
+        return new ResponseEntity<>(HttpStatus.ACCEPTED);
+    }
+    ~~~
+
+  - MVC 프레임워크는 HTTP 요청파라미터로부터 자바 객체를 생성하는 기능을 지원하므로, 위와 같이 객체로 받으면 프레임워크가 알아서 해당 객체에 맞는 값을 주입해준다.
+  - 책에서는 표현영역의 파라미터를 응용서비스에 바로 전달을 해줬으나, 나는 응용서비스에 따로 요청 파라미터를 두었다.
+
+- 응용 서비스의 실행결과를 사용자에게 알맞은 형식으로 제공하는 것도 표현 영역의 몫이다.
+
+  - 응용 서비스에서 익셉션이 발생하면 에러코드를 설정하는데 표현 영역의 뷰는 이 에러코드에 알맞는 처리(해당하는 메시지 출력과 같은)를 하게 된다.
+  - 표현 영역의 다른 주된 역할은 사용자의 연결 상태인 세션을 관리하는 것이다. 웹은 쿠키나 서버 세션을 잉요해서 사용자의 연결 상태를 관리한다.
+
+#### 6.5 값 검증
+
+- 값 검증은 표현 영역과 응용 서비스 두 곳에서 모두 수행할 수 있다. 원칙적으로 모든 값에 대한 검증은 응용 서비스에서 처리한다. 
+
+  - 예를 들어 회원 가입을 처리하는 응용 서비스는 파라미터로 전달받은 값이 올바른지 검사해야한다.
+
+  ~~~java
+  @Service
+  @RequiredArgsConstructor
+  public class JoinMemberService {
+  
+    private final MemberRepository memberRepository;
+    private final PasswordEncryptionEngine passwordEncryptionEngine;
+  
+    @Transactional
+    public joinResponse joinMember(joinCommand req) throws DuplicateEmailException {
+      //값의 형식 검사
+      checkEmpty(req.getEmail(), "email");
+      checkEmpty(req.getPassword(), "password");
+      checkEmpty(req.getName(), "name");
+  
+      //로직 검사
+      checkDuplicatedEmail(req.getEmail());
+  
+      AddressCommand addressReq = req.getAddressReq();
+      Address address = new Address(addressReq.getCity(), addressReq.getGuGun(), addressReq.getDong(),
+          addressReq.getBunji());
+  
+      String encryptedPassword = passwordEncryptionEngine.encryptKey(req.getPassword());
+      Member member = new Member(req.getName(), req.getEmail(), new Password(encryptedPassword),
+          address);
+  
+      memberRepository.save(member);
+  
+      return new joinResponse(member.getId(), member.getName());
+    }
+  
+    private void checkDuplicatedEmail(String email) throws DuplicateEmailException {
+      Long count = memberRepository.countByEmail(email);
+      if (count > 0) {
+        throw new DuplicateEmailException();
+      }
+    }
+  
+    private void checkEmpty(String value, String propertyName) {
+      if (value == null || value.isEmpty()) {
+        throw new NullPointerException(String.format("{}는 빈 값입니다.", propertyName));
+      }
+    }
+  }
+  ~~~
+
+  - 표현 영역은 잘못된 값이 존재하면 이를 사용자에게 알려주고 값을 다시 입력받아야 한다. 
+
+  - Spring MVC는 폼에 입력한 값이 잘못된 경우 에러메시지를 보여주기 위한 용도로 Errors나 BindingReulst를 사용하는데, 컨트롤러에서 위와 같은 응용 서비스를 사용하면 폼에 에러 메시지를 보여주기 위해 다음과 같이 다소 번잡한 코드를 사용한다.
+
+    ~~~java
+    @PostMapping("/members/join")
+      public ResponseEntity join(@RequestBody JoinMemberRequest req, Errors errors){
+        String email = req.getEmail();
+        String password = req.getPassword();
+        String name = req.getName();
+        AddressCommand addressReq = req.getAddressReq();
+    
+        try {
+          joinResponse joinResponse = joinMemberService.joinMember(
+              new joinCommand(email, password, name, addressReq));
+    
+          return new ResponseEntity<MemberResponse>(
+              new MemberResponse(
+                  joinResponse.getMemberId(), joinResponse.getName(), "회원가입을 축하드립니다."),
+              HttpStatus.ACCEPTED);
+        } catch (DuplicateEmailException e) {
+          errors.rejectValue(e.getMessage(), "duplicate");
+          return new ResponseEntity(HttpStatus.BAD_REQUEST);
+        } catch (...) {
+    			...    
+        }
+      }
+    ~~~
+
+  - 응용 서비스에서 각 값이 유효한지 확인할 목적으로 익셉션을 사용할 때의 문제점은 사용자에게 좋지 않은 경험을 제공한다는 것이다. 
+
+  - 사용자는 폼에 값을 입력하고 전송했는데 입력한 값이 잘못되어 다시 폼에 입력해야 할 때 한 개 항목이 아닌 입력한 모든 항목에 대해 잘못된 값이 존재하는지 알고 싶을 것이다. 그래야 한번에 잘못된 값을 제대로 입력할 수 있기 때문이다.
+
+  - 그런데 응용서비스에서 값을 검사하는 시점에 첫 번째 값이 올바르지 않아 익셉션을 발생시키면 나머지 항목에 대해서는 값을 검사하지 않게 된다. 
+
+    - ​	이러면 사용자는 첫 번째 값에 대한 에러메시지만 보게 되고 나머지 항목에 대해서는 값이 올바른지 알 수 없게 된다. 이는 사용자가 같은 폼에 값을 여러번 입력하게 만든다.
+
+  - 이런 사용자 불편을 해소하기 위해 응용 서비스에서 에러코드를 모아 하나의 익셉션으로 발생시키는 방법이 있다.
+
+  - 아래의 코드는 값 검증 시, 잘못된 값이 존재하면 errors에 추가를 한다. 값 검증이 끝난 뒤에 errors에 값이 존재하면 erros 목록을 갖는 ValidationErrorExceptino을 발생시켜 입력 파라미터 값이 유효하지 않다는 사실을 알린다.
+
+    ~~~java
+    @Transactional
+      public Long placeOrderV2(PlaceOrderCommand command) throws ValidationErrorException {
+        List<ValidationError> errors = new ArrayList<>();
+    
+        if (command == null) {
+          errors.add(ValidationError.of("empty"));
+        } else {
+          if (command.getOrderer() == null) {
+            errors.add(ValidationError.of("orderer", "empty"));
+          }
+          if (command.getOrderLines() == null) {
+            errors.add(ValidationError.of("orderLine", "empty"));
+          }
+          if (command.getShippingInfo() == null) {
+            errors.add(ValidationError.of("shippingInfo", "empty"));
+          }
+        }
+    
+        if (!errors.isEmpty()) {
+          throw new ValidationErrorException(errors);
+        }
+    
+        Order order = new Order(command.getOrderLines(), command.getShippingInfo(),
+            command.getOrderer());
+        orderRepository.save(order);
+        return order.getId();
+      }
+    ~~~
+
+  - 표현 영역은 응용 서비스가 ValidationErrorException을 발생시키면 다음 코드처럼 익셉션에서 에러 목록을 가져와 표현 영역에서 사용할 형태로 변환 처리한다.
+
+    ~~~java
+    @PostMapping("/orders/place-order")
+    public Long order(@RequestBody PlaceOrderRequest req, BindingResult bindingResult) {
+      try {
+        Long orderId = orderService.placeOrderV2(
+          new PlaceOrderCommand(req.getOrderLines(), req.getShippingInfo(), req.getOrderer()));
+    
+        return orderId;
+      } catch (ValidationErrorException e) {
+        e.getErrors().forEach(err -> {
+          if (err.hasName()) {
+            bindingResult.rejectValue(err.getPropertyName(), err.getValue());
+          } else {
+            bindingResult.reject(err.getValue());
+          } 
+        });
+    
+        throw new RuntimeException(e);
+      }
+    }
+    ~~~
+
+  - 표현 영역에서 필수 값을 검증하는 방법도 있다.
+
+  - 스프링과 같은 프레임워크는 값 검증을 위한 Validator 인터페이스를 별도로 제공하므로 이 인터페이스를 구현한 검증기를 따로 구현하면 간결하게 구현할 수 있다.
+
+    ~~~
+    @PostMapping("/member/join")
+    public String join(joinRequest joinRequest, Errors erros) {
+    	JoinRequestValidator().validate(joinRequest, errors);
+    	if(errors.hasErrors()) return formView;
+    	
+    	try{
+        joinService.join(joinRequest);
+        return successView;
+    	} catch(DuplicateIdException ex) {
+    		errors.rejectValue(ex.getPropertyName(), "duplicate");
+    		return formView;
+    	}
+    }
+    ~~~
+
+  - 이렇게 표현 영역에서 필수 값과 값의 형식을 검사하면 실질적으로 응용 서비스는 ID 중복 여부와 같은 논리적 오류만 검사하면 된다.
+
+  -  즉 표현 영역과 응용 서비스가 값 검사를 나눠서 수행하는 것이다. 응용 서비스를 사용하는 표현 영역 코드가 한 곳이면 구현의 편리함을 위해 다음과 같이 역할을 나눌 수 있다.
+
+    - 표현 영역: 필수 값, 값의 형식, 범위 등을 검증한다.
+    - 응용 서비스: 데이터의 존재 유무와 같은 논리적 오류를 검증한다.
+
+  - 응용 서비스에서 얼마나 엄격하게 값을 검증해야 하는지에 대허슨 의견이 갈릴 수 있다.
+
+    - 책의 필자는 최근에 응용 서비스에서 필수값 검증과 논리적인 검증을 모두 하는 편이라한다.
+
+    - 응용 서비스에서 필요한 값 검증을 모두 처리하면 프레임워크가 제공하는 검증 기능을 사용할 때 보다 작성할 코드가 늘어나는 불편함이 있지만 반대로 응용 서비스의 완성도가 높아지는 이점이 있다. 필자는 이런 이점이 더크게 느껴져 응용 서비스에서 값 오류를 검증하는 편이라 한다.
+
+      > 질문 - 그렇다면 @Valid(NonNull, NonBlak와 같은것들도 포함)는 언제쓰는게 좋을까?
+
+  
+
+#### 6.6 권한 검사
+
+- 권한이란 사용자가 특정 기능 사용 또는 자원 접근에 대하여 권한을받을 수 있다.
+
+  - 예를 들면 '상점주는 상품 등록이 가능하지만, 고객은 상품 등록이 불가능 하다. 또는 자신의 개인정보는 볼 수 있지만, 남의 개인정보는 볼 수 없다.'
+
+- 개발하는 시스템마다 권한의 복잡도가 다르다. 단순한 시스템은 인증 여부만 검사하면 되는데 반해, 어떤 시스템은 관리자인지에 따라 사용할 수 있는 기능이 달라진다.
+
+- 또는 실행할 수 있는 기능이 역할마다 달라지는 경우도 있다.
+
+  - 이런 다양한 상황을 충족하기 위해 스프링 시큐리티(Spring Security) 같은 프레임워크는 유연하고 확장 가능한 구조를 갖고 있다.
+  - 이는 유연한 만큼 복잡하다는 것을 의미한다.
+  - 보안 프레임워크에 대한 이해가 부족하면 프레임워크를 무턱대고 도입하는 것보다 개발할 시스템에 맞는 권한 검사 기능을 구현하는 것이 시스템 유지 보수에 유리할 수 있다.
+
+- 보안 프레임워크의 복잡도를 떠나 보통 다음 세곳에서 권한 검사를 수행할 수 있다.
+
+  - 표현 영역
+  - 응용 서비스
+  - 도메인
+
+- 표현 영역에서 할 수 있는 기본적인 검사는 인증된 사용자인지 아닌지 검사하는 것이다. 
+
+  - 대표적인 예가 회원 정보 변경기능이다. 회원 정보 변경과 관련된 URL은 인증된 사용자마 접근해야 한다. 회원 정보 변경을 처리하는 URL에 대해 표현 영역은 다음과 같이 접근 제어를 할 수 있다.
+
+    - URL을 처리하는 컨트롤러에 웹 요청을 전달하기 전에 인증 여부를 검사해서 인증된 사용자의 웹 요청만 컨트롤러에 전달한다.
+    - 인증된 사용자가 아닐 경우 로그인 화면으로 리다이렉트Redirect 시킨다.
+
+  - 이런 접근 제어를 하기에 좋은 위치가 서블릿 필터(또는 인터셉터?)이다.
+
+  - 서블릿 필터에서 사용자의 인증정보를 생성하고 인증 여부를 검사한다. 인증된 사용자면 다음 과정을 진행하고 그렇지 않으면 로그인 화면이나 에러 화면을 보여주면 된다.
+
+    <img src="./img/presentation2.JPEG" style="zoom:33%;" />
+
+  - 인증 여부뿐만 아니라 권한에 대해서 동일한 방식으로 필터를 사용해서 URL별 권한 검사를 할 수 있다. 스프링 시큐리티는 이와 유사항 방식으로 필터를 이용해서 인증 정보를 생성하고 웹 접근을 제어한다.
+
+- URL 만으로 접근 제어를 할 수 없는 경우 응용 서비스의 메서드 단위로 권한 검사를 수행해야 한다. 이것이 꼭 응용 서비스의 코드에서 직접 권한 검사를 해야 한다는 것을 의미하는 것은 아니다.
+
+  - 예를 들어 스프링 시큐리티는 AOP를 활용해서 다음과 같이 애너테이션으로 서비스 메서드에 대한 권한 검사를 할 수 있는 기능을 제공한다.
+
+    ~~~java
+    public class BlockMemberService {
+    
+      private MemberRepository memberRepository;
+      
+      @PreAuthorize("hasRole('ADMIN')")
+      public void block(Long memberId) {
+        Member member = memberRepository.findById(memberId).orElseThrow(NoSuchElementException::new);
+        member.block();
+      }
+    }
+    ~~~
+
+  - 개별 도메인 객체 단위로 권한 검사를 해야 하는 경우는 구현이 복잡해진다. 
+
+  - 예를 들어 게시글 삭제는 본인 또는 관리자 역할을 가진 사용자만 할 수 있다 할 때, 게시글 작성자가 본인인지 확인하려면 게시글 애그리거트를 먼저 로딩해야 한다. 즉 응용 서비스의 메서드 수준에서 권한 검사를 할 수 없기 때문에(질문 - 이게 무슨말인지 이해가 안간다? 그렇다면 도메인 서비스에서 해야 되는 것인가) 다음과 같이 직접 권한 검사 로직을 구현해야 한다.
+
+    ~~~java
+    public class DeleteArticleService {
+    	public void delete(Long userId, Long articleId) {
+    		Article article = articleRepository.findByID(articleId);
+    		checkArticleExistence(article);
+    		permissionService.checkDeletePermission(userId, article);
+    		article.markDeleted();
+    	}
+    }
+    ~~~
+
+  - permissionService.checkDeletePermission()은 파라미터로 전달받은 사용자 ID와 게시글을 이용해서 삭제 권한을 가졌는지를 검사한다.
+
+- 스프링 시큐리티와 같은 보안 프레임워크를 확장해서 개별 도메인 객체 수준의 권한 검사 기능을 프레임워크에 통합할 수 있다. 
+
+- 도메인 객체 수준의 권한 검사 로직은 도메인별로 다르므로 도메인에 맞게 보안 프레임워크를 확장하려면 프레임워크에 대한 높은 이해가 필요하다.
+
+- 이해도가높지 않아 프레임워크 확장을 원하는 수준으로 할 수 없다면 프레임워크를 사용하는 대신 도메인에 맞는 권한 검사 기능을 직접 구현하는 것이 코드 유지보수에 유리하다.
+
+- 
+

@@ -23,22 +23,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class MemberService {
 
   private final MemberRepository memberRepository;
-  private final PasswordEncryptionEngine passwordEncryptionEngine;
-
-  @Transactional
-  public joinResponse joinMember(joinCommand req) {
-    AddressCommand addressReq = req.getAddressReq();
-    Address address = new Address(addressReq.getCity(), addressReq.getGuGun(), addressReq.getDong(),
-        addressReq.getBunji());
-    String encryptedPassword = passwordEncryptionEngine.encryptKey(req.getPassword());
-
-    Member member = new Member(req.getName(), req.getEmail(), new Password(encryptedPassword),
-        address);
-
-    memberRepository.save(member);
-
-    return new joinResponse(member.getId(), member.getName());
-  }
 
   @Transactional(readOnly = true)
   public void findMemberByName(String name) {

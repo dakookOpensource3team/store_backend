@@ -1,6 +1,8 @@
 package com.example.ddd_start.order.application.service;
 
+import com.example.ddd_start.common.domain.error.ValidationError;
 import com.example.ddd_start.common.domain.exception.NoOrderException;
+import com.example.ddd_start.common.domain.exception.ValidationErrorException;
 import com.example.ddd_start.member.domain.Member;
 import com.example.ddd_start.member.domain.MemberRepository;
 import com.example.ddd_start.order.application.model.ChangeOrderShippingInfoCommand;
@@ -9,6 +11,7 @@ import com.example.ddd_start.order.domain.Order;
 import com.example.ddd_start.order.domain.OrderRepository;
 import com.example.ddd_start.order.domain.dto.OrderDto;
 import com.example.ddd_start.order.domain.value.ShippingInfo;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -59,6 +62,34 @@ public class OrderService {
   public Long placeOrder(PlaceOrderCommand placeOrderCommand) {
     Order order = new Order(placeOrderCommand.getOrderLines(), placeOrderCommand.getShippingInfo(),
         placeOrderCommand.getOrderer());
+    orderRepository.save(order);
+    return order.getId();
+  }
+
+  @Transactional
+  public Long placeOrderV2(PlaceOrderCommand command) throws ValidationErrorException {
+    List<ValidationError> errors = new ArrayList<>();
+
+    if (command == null) {
+      errors.add(ValidationError.of("empty"));
+    } else {
+      if (command.getOrderer() == null) {
+        errors.add(ValidationError.of("orderer", "empty"));
+      }
+      if (command.getOrderLines() == null) {
+        errors.add(ValidationError.of("orderLine", "empty"));
+      }
+      if (command.getShippingInfo() == null) {
+        errors.add(ValidationError.of("shippingInfo", "empty"));
+      }
+    }
+
+    if (!errors.isEmpty()) {
+      throw new ValidationErrorException(errors);
+    }
+
+    Order order = new Order(command.getOrderLines(), command.getShippingInfo(),
+        command.getOrderer());
     orderRepository.save(order);
     return order.getId();
   }
