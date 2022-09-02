@@ -3,12 +3,12 @@ package com.example.ddd_start.application.order;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.example.ddd_start.domain.order.calculate_rule_engine.CalculateRuleEngine;
-import com.example.ddd_start.domain.customer.Customer;
-import com.example.ddd_start.domain.customer.CustomerRepository;
-import com.example.ddd_start.domain.order.OrderLine;
-import com.example.ddd_start.domain.order.service.CalculateDiscountService;
-import com.example.ddd_start.infrastructure.money.calculate_rule_engine.DroolsRuleEngine;
+import com.example.ddd_start.order.domain.CalculateRuleEngine;
+import com.example.ddd_start.customer.domain.Customer;
+import com.example.ddd_start.customer.domain.CustomerRepository;
+import com.example.ddd_start.order.domain.OrderLine;
+import com.example.ddd_start.order.domain.service.CalculateDiscountService;
+import com.example.ddd_start.common.infrastructure.calculate_rule_engine.DroolsRuleEngine;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;

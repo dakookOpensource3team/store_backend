@@ -491,8 +491,8 @@ public class DroolsRuleEngine implements CalculateRuleEngine{
 
     ~~~java
     Member member = memberRepository.findByOrdererId(ordererId);
-    List<Order> orders = orderRepository.findByOrdererId(ordererId);
-    List<OrderView> dtos = orders.stream()
+    List<Order> order = orderRepository.findByOrdererId(ordererId);
+    List<OrderView> dtos = order.stream()
     	.map(order -> {
     		Long productId = order.getOrderLines().get(0).getProductId();
     		//각 주문마다 첫번째 주문 상품 정보 로딩을 위한 쿼리 실행 -> N + 1 문제 발생
@@ -602,12 +602,12 @@ public class DroolsRuleEngine implements CalculateRuleEngine{
       public void changeShippingInfo(ChangeOrderShippingInfoCommand changeOrderShippingInfoCommand) {
         Optional<Orders> optionalOrder = orderRepository.findById(
             changeOrderShippingInfoCommand.getOrderId());
-        Orders orders = optionalOrder.orElseThrow(NoOrderException::new);
+        Orders order = optionalOrder.orElseThrow(NoOrderException::new);
         ShippingInfo newShippingInfo = changeOrderShippingInfoCommand.getShippingInfo();
-        orders.changeShippingInfo(newShippingInfo);
+        order.changeShippingInfo(newShippingInfo);
     
         if (changeOrderShippingInfoCommand.isUseNewShippingAddressAsMemberAddress()) {
-          Optional<Member> optionalMember = memberRepository.findById(orders.getOrderer().getMemberId());
+          Optional<Member> optionalMember = memberRepository.findById(order.getOrderer().getMemberId());
           Member member = optionalMember.orElseThrow(NoSuchElementException::new);
           member.changeAddress(newShippingInfo.getAddress());
         }
@@ -643,7 +643,7 @@ public class DroolsRuleEngine implements CalculateRuleEngine{
 
       ~~~java
       //엔티티
-      @Entity(name = "orders")
+      @Entity(name = "order")
       @Getter
       public class Orders {
       
@@ -661,7 +661,7 @@ public class DroolsRuleEngine implements CalculateRuleEngine{
                 column = @Column(name = "receiver_phone_number"))
         })
         private ShippingInfo shippingInfo;
-        @OneToMany(mappedBy = "orders", cascade = CascadeType.ALL)
+        @OneToMany(mappedBy = "order", cascade = CascadeType.ALL)
         List<OrderLine> orderLines;
         @Embedded
         @AttributeOverride(name = "value", column = @Column(name = "total_amounts"))
@@ -702,7 +702,7 @@ public class DroolsRuleEngine implements CalculateRuleEngine{
 
   ~~~java
   //엔티티
-  @Entity(name = "orders")
+  @Entity(name = "order")
   @Getter
   public class Orders {
   ...
@@ -732,7 +732,7 @@ public class DroolsRuleEngine implements CalculateRuleEngine{
    - Order의는 ShippingInfo 밸류의 Receiver 밸류의 name, phone_number 컬럼의 의미 전달을 위해 @AttributeOverride를 통해 컬럼이름을 커스터마이징 해주었다.
 
      ~~~java
-     @Entity(name = "orders")
+     @Entity(name = "order")
      @Getter
      public class Orders { 
        //...
@@ -821,7 +821,7 @@ public interface AttributeConverter<X,Y> {
 ```java
 package com.example.ddd_start.infrastructure.money.moeny_converter;
 
-import com.example.ddd_start.domain.common.Money;
+import com.example.ddd_start.common.domain.Money;
 import javax.persistence.AttributeConverter;
 import javax.persistence.Converter;
 
@@ -849,7 +849,7 @@ public class MoneyConverter implements AttributeConverter<Money, Integer> {
   - 예) Order의 Money
 
     ~~~java
-    @Entity(name = "orders")
+    @Entity(name = "order")
     @Getter
     public class Orders {
     	@Column(name = "total_amounts")
@@ -1022,11 +1022,12 @@ public class MoneyConverter implements AttributeConverter<Money, Integer> {
       
     public abstract String getThumbnailURL();
      - Image를 상속받는 InternalImage와 ExternalImage를 구현하였다.
-    
+  
       }
+  
   ```
 
- 
+
   ```java
   @Entity
   @DiscriminatorValue("II")
@@ -1265,27 +1266,339 @@ public class MoneyConverter implements AttributeConverter<Money, Integer> {
 
 
 
+### 5. 스프링 데이터 JPA를 이용한 조회 기능
+
+#### 5.1 시작에 앞서
+
+- CQRS는 명령(Command) 모델과 조회(Query)모델을 분리하는 패턴이다.
+  - 명령 모델은 상태를 변경하는 기능을 구현할 때 사용한다.
+    - 예) 회원 가입, 암호 변경 등 처럼 상태(데이터)를 변경하는  기능
+  - 조회 모델은 데이터를 조회하는 기능을 구현할 때 사용한다.
+    - 예) 주문 목록 조회, 주문 상세 조회(테이터)를 조회하는 기능
+- 엔티티, 애그리거트, 레피지토리 등의 모델은 상태를 변경할 때 주로 사용된다. 즉 도메인 모델은 명령 모델로 주로 사용된다.
 
 
 
+#### 5.2 검색을 위한 스펙
+
+- 검색 조건이 고정되어 있고 단순하면 특정 조건으로 조회하는 기능을 만들면 된다.
+
+  ~~~java
+  @Repository
+  public interface OrderRepository extends JpaRepository<Orders, Long> {
+  
+    List<Orders> findAllByIdAndCreatedAtBetween(Long id, Instant startAt, Instant endedAt);
+  }
+  ~~~
+
+- 목록 조회와 같은 기능은 다양한 검색 조건을 조합해야 할 때가 있다. 필요한 조합마다 find 메서드를 정의할 수도 있지만 이것은 좋은 방법이 아니다. 조합이 증가할수록 정의해야 할 find 메서드도 함께 증가한다.
+
+  > 책에서는 Spectificaiton을 쓰는 방법을 통해 동적으로 조건을 거는 법을 서술했으나, 나는 Querydsl을 써서 구현할 예정이다.
+
+- 레포지토리나 DAO는 검색 대상을 걸러내는 용도로 스펙을 사용한다. 레포지토리가 스펙을 이용해서 검색 대상을 걸러주므로 특정 조건을 충족하는 애그리거트를 찾고 싶으면 스펙을 생성해서 레포지토리에 전달해주기만 하면 된다.
+- 하지만 실제 스펙은 이렇게 구현하지 않는다. 모든 애그리거트 객체를 메모리에 보관하기도 어렵고, 설사 메모리에 다 보관할 수 있다 하더라도 조회 성능에 심각한 문제가 발생한다.
+  - 실제 스펙은 사용하는 기술에 맞춰 구현하게 된다.
 
 
 
+#### 5.3 스프링 데이터 JPA를 이용한 스펙 구현
+
+- 책에서는 Criteria를 사용해서 구현하는데 이것은 개발을 진행하는데 비추되므로 QueryDsl을 사용해서 구현할 것이다.
+
+  - ordererId를 이용한 orderDto조회
+
+  ~~~java
+  public class OrderCustomRepositoryImpl implements OrderCustomRepository {
+  
+    private final JPAQueryFactory queryFactory;
+  
+    public OrderCustomRepositoryImpl(EntityManager em) {
+      this.queryFactory = new JPAQueryFactory(em);
+    }
+  
+    @Override
+  
+    public List<OrderDto> findOrderByOrdererId(OrderSearchCondition orderSearchCondition) {
+      List<OrderDto> result = queryFactory.query()
+          .select(Projections.constructor(OrderDto.class,
+              order.orderNumber,
+              order.orderState,
+              order.shippingInfo,
+              order.totalAmounts,
+              order.orderer.name,
+              order.createdAt
+          ))
+          .from(order)
+          .where(ordererIdEq(orderSearchCondition.getOrdererId()))
+          .fetch();
+  
+      return result;
+    }
+  
+    private BooleanExpression ordererIdEq(Long ordererId) {
+      return ordererId == null ? null : order.orderer.memberId.eq(ordererId);
+    }
+  }
+  ~~~
+  
+  
+
+#### 5.4 레포지토리/DAO에서 스펙 사용하기
+
+- 스펙을 충족하는 엔티티를 검색하고 싶다면 findAll()메소드를 사용하면 된다.
+  - findAll()메서드는 스펙 인터페이스를 파라미터로 갖는다.
 
 
 
+#### 5.5 스펙 조합
+
+- 스프링 데이터 JPA가 제공하는 스펙 인터페이스는 스펙을 조합할 수 있는 메소드를 제공한다(and와 or 제공). 허나 Querydsl도 where절에 and(), or()메소드를 제공하고 있다.
+
+- Querydsl의 and(), or()메소드
+
+  ~~~java
+  @Override
+  public List<OrderDto> findOrderByOrdererIdAndOrderStateShipping(
+    OrderSearchCondition orderSearchCondition) {
+    List<OrderDto> result = queryFactory.query()
+      .select(Projections.constructor(OrderDto.class,
+  				order.orderNumber,
+  				order.orderState,
+  				order.shippingInfo,
+          order.totalAmounts,
+          order.orderer.name,
+          order.createdAt))
+      .from(order)
+      .where(ordererIdEq(orderSearchCondition.getOrdererId())
+             .and(orderStateEq(OrderState.SHIPPED)))
+      .fetch();
+  
+    return result;
+  }
+  ~~~
+
+  
+
+#### 5.6 정렬 지정하기
+
+- 스프링 데이터 JPA는 두 가지 방법을 사용해서 정렬을 지정할 수 있다.
+
+  - 메서드 이름에 OrderBy를 사용해서 정렬 기준 지정
+
+  - Sort를 인자로 전달
+
+- 특정 프로퍼티로 조회하는 find 메서드 이름 뒤에 OrderBy를 사용해서 정렬 순서를 지정할 수 있다.
+
+  ~~~java
+  List<Order> findOrderByIdOrderByCreatedAtDesc(Long id);
+  ~~~
+
+  - Id 프로퍼티 값을 기준으로 검색조건 지정
+  - createdAt 프로퍼티 값 역순으로 정렬 (최신 데이터부터 출력함)
+
+- 두개 이상의 프로퍼티에 대한 정렬 순서를 지정할수도 있다.
+
+  ~~~java
+  List<Order> findOrderByIdOrderByCreatedAtDescTotalAmountsDesc(Long id);
+  ~~~
+
+  - createdAt 프로퍼티값 역순, 주문 총금액 역순으로 정렬
+
+- 메서드 이름에 OrderBy를 사용하는 방법은 간단하지만 정렬 기준 프로퍼티가 두 개 이상이면 메서드 이름이 길어지는 단점이 있다.
+
+  - 또한 메서드 이름으로 정렬 순서가 정해지기 때문에 상황에 따라 정렬 순서를 변경할 수도 없다.
+  - 이럴때는 Sort 타입을 사용하면 된다.
+
+- 스프링 데이터 JPA는 정렬 순서를 지정할 때 사용할 수 있는 Sort 타입을 제공한다.
+
+  ~~~java
+  List<Order> findOrderByOrdererId(@Param("OrdererId") Long id, Sort sort);
+  ~~~
+
+  - sort 단일 및 다중 설정하는 방법
+
+  ~~~java
+  // 단일
+  Sort sort = Sort.by("createdAt").ascending();
+  
+  // 다중
+  Sort sort1 = Sort.by("createdAt").ascending();
+  Sort sort2 = Sort.by("totalAmounts").ascending();
+  Sort sort = sort1.and(sort2);
+  	// 또는
+  Sort sort = Sort.by("createdAt").descending().and(Sort.by("totalAmounts").ascending());
+  ~~~
+
+**Querydsl의 정렬 방법**
+
+- orderBy(): 정렬 메소드
+
+- 정렬하고 싶은 필드를 파라미터로 넘기면 된다
+
+   `.orderBy(member.age.desc())`
+
+   `.orderBy(member.age.asc())`
 
 
 
+#### 5.7 페이징 처리하기
+
+- 목록을 보여줄 때 전체 데이터 중 일부만 보여주는 페이징처리는 기본이다.
+
+- 스프링 데이터 JPA는 페이징 처리를 위해 Pageable 타입을 이요한다. Sort 타입과 마찬가지로 findAll()메서드에 Pageable 타입 파라미터를 사용하면 페이징을 자동으로 처리해준다.
+
+  ~~~java
+  public interface MemberRepository extends JpaRepository<Member, Long> {
+  
+    List<Member> findMemberByNameLike(String name, Pageable pageable);
+  
+  }
+  ~~~
+
+  - findByNameLike() 메서드의 마지막 파라미터로 Pageable 타입을 갖는다.
+  - Pageable 타입은 인터페이스로 실제 Pageable 타입 객체는 PageRequest 클래스를 이용해서 생성한다.
+  - findMemberByNameLike() 메서드를 호출하는 예
+
+  ~~~java
+  // 첫번째 파라미터는 page, 두번째 파라미터는 size
+  // 아래의 함수는 0번째 page 부터 10개씩 가져온다는 것을 의미한다.
+  PageRequest pageRequest = PageRequest.of(0, 10);
+  List<Member> memberByNameLike = memberRepository.findMemberByNameLike(name, pageRequest);
+  ~~~
+
+- PageReuqest와 Sort를 사용하면 정렬 순서를 지정할 수 있다.
+
+  ~~~java
+  Sort sort = Sort.by("id").descending();
+  PageRequest pageRequest = PageRequest.of(0, 10, sort);
+  ~~~
+
+- Page 타입을 사용하면 데이터 목록뿐만 아니라 조건에 해당하는 전체 개수도 구할 수 있다.
+
+  ~~~java
+  Page<Member> findPageMemberByNameLike(String name, Pageable pageable);
+  ~~~
+
+  - Pageable을 사용하는 메서드의 리턴 타입이 Page일 경우 스프링 데이터 JPA는 목록 조회 쿼리와 함께 COUNT 쿼리도 실행해서 조건에 해당하는 데이터 개수를 구한다.
+  - Page는 전체 개수, 페이지 개수 등 페이징 처리에 필요한 데이터도 함께 제공한다.
+
+- findAll() 메서드도 Pageable을 사용할 수 있다.
+
+- 처음부터 N개의 데이터가 필요하다면 Pageable을 사용하지않고 findFirstN 형식의 메서드를 사용할 수도 있다.
+
+  ~~~java
+  List<Member> findFirst3ByNameLikeOrderByName(String name);
+  ~~~
+
+  - First대신 Top을 사용해도 문제 없다. Fisrt나 Top 뒤에 숫자가 없으면 한개 결과만 리턴한다.
+
+  ~~~java
+  List<Member> findTop3ByNameLikeOrderByName(String name);
+  ~~~
 
 
 
+**Querydsl의 페이징**
+
+~~~java
+from(Entity)
+ .offset(pageable.getOffset())
+ .limit(pageable.getPageSize())
+~~~
+
+- 조회 메서드를 추가할때 offset은 몇번째 데이터부터 가져올지를 결정하고, limit은 몇개의 데이터를 가져올지를 정한다.
 
 
 
+#### 5.8 스펙 조합을 위한 스펙 빌더 클래스
+
+- criteria부분은 스킵하고, Querydsl에서의 BooleanBuilder를 생성하는 법을 정리해 두겠다.
+
+~~~java
+ @Override
+  public List<OrderDto> searchMyStateOrders(
+      OrderSearchCondition orderSearchCondition) {
+    //builder 생성
+    BooleanBuilder builder = new BooleanBuilder();
+    if (orderSearchCondition.getOrdererId() != null) {
+      builder.and(ordererIdEq(orderSearchCondition.getOrdererId()));
+    }
+    if (orderSearchCondition.getOrderState() != null) {
+      builder.and(orderStateEq(orderSearchCondition.getOrderState()));
+    }
+    //builder 생성 완료
+
+    List<OrderDto> result = queryFactory
+        .select(Projections.constructor(OrderDto.class,
+            order.orderNumber,
+            order.orderState,
+            order.shippingInfo,
+            order.totalAmounts,
+            order.orderer.name,
+            order.createdAt
+        ))
+        .from(order)
+        .where(builder)
+        .fetch();
+
+    return result;
+  }
+~~~
+
+- BooleanBulider를 통해 builder를 생성하여 미리 where절에 들어갈 조건을 생성하였다
+- 코드를 보면 기존의 where절에 조건을 넣는것보다 미리 빌더를 생성하니 더 깔끔해졌다.
 
 
 
+#### 5.9 동적 인스턴스 생성
+
+- JPA는 쿼리 결과 값을 임의의 객체를 동적으로 생성할 수 있다.
+
+~~~java
+@Query(value =
+       //아래의 select 구문을 보면 new를 통해 dto 생성자를 호출한다.
+      "select new com.example.ddd_start.order.domain.dto.OrderResponseDto(o, m, p) "
+          + "from orders o join o.orderLines ol, Member m, Product p "
+          + "where o.orderer.memberId = :memberId "
+          + "and o.orderer.memberId = m.id "
+          + "and ol.product_id = p.id")
+  List<OrderResponseDto> findOrdersByMemberId(@Param("memberId") Long memberId);
+~~~
 
 
 
+- Querydsl은 쿼리 결과에서 임의의 객체를 동적으로 생성할 수 있다.
+
+~~~java
+ @Override
+  public List<OrderDto> searchMyStateOrders(
+      OrderSearchCondition orderSearchCondition) {
+    BooleanBuilder builder = new BooleanBuilder();
+    if (orderSearchCondition.getOrdererId() != null) {
+      builder.and(ordererIdEq(orderSearchCondition.getOrdererId()));
+    }
+    if (orderSearchCondition.getOrderState() != null) {
+      builder.and(orderStateEq(orderSearchCondition.getOrderState()));
+    }
+
+    List<OrderDto> result = queryFactory
+      	//Proejctions.construector()를 통해 OrderDto의 생성자를 아래의 파라미터로 호출한다.
+        .select(Projections.constructor(OrderDto.class,
+            order.orderNumber,
+            order.orderState,
+            order.shippingInfo,
+            order.totalAmounts,
+            order.orderer.name,
+            order.createdAt
+        ))
+        .from(order)
+        .where(builder)
+        .fetch();
+
+    return result;
+  }
+~~~
+
+- **JPQL 이든 Querydls이든 동적으로 인스턴스를 생성하면 가져갈 수 있는 이점은 조회전용 모델을 만들기 때문에 표현영역을 통해 사용자에게 적합한 데이터를 보여줄 수 있다.**
+
+#### 5.10은 스킵
