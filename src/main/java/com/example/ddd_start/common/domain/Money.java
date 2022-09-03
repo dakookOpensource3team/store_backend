@@ -23,7 +23,7 @@ public class Money {
     return new Money(this.amount * quantity);
   }
 
-  private Money subtract(Money money) {
+  public Money subtract(Money money) {
     return new Money(this.amount - money.amount);
   }
 
