@@ -2562,3 +2562,10 @@ public class DiscountCalculationService {
 
   - SurveyPermissionCheck 인터페이스를 구현한 클래스는 인프라스트럭처 영역에 위치해 연동을 포함한 권한 검사 기능을 구현한다.
 
+#### 7.2.3 도메인 서비스의 패키지 위치
+
+- 도메인 서비스는 도메인 로직을 표현하므로 도메인 서비스의 위치는 다른 도메인 구성요소와 동일한 패키지에 위치한다. 
+  - 예를 들어 주문 금액 계싼을 위한 도메인 서비스는 그림과 같이 주문 애그리거트와 같은 패키지에 위치한다.		<img src="./img/domain_service1.jpg" style="zoom:33%;" />
+
+- 도메인 서비스의 개수가 많거나 엔티티나 밸류와 같은 다른 구성요소와 명시적으로 구분하고 싶다면 domain 패키지 밑에 domain.model, domain.service, domain.repository와 같이 하위 패키지를 구분하여 위치시켜도 된다.
+
