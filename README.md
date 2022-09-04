@@ -2529,4 +2529,36 @@ public class DiscountCalculationService {
   >
   > 예를 들어 계좌 이체 로직은 계좌 애그리거트의 상태를 변경한다. 결제 금액 로직은 주문 애그리거트의 주문 금액을 계산한다. 이 두 로직은 각각 애그리거트를 변경하고 애그리거트의 값을 계산하는 도메인 로직이다. 도메인 로직이면서 한 애그리거트에 넣기에 적합하지 않으므로 이 두 로직은 도메인 서비스로 구현하게 된다.
 
- 
+#### 7.2.2 외부 시스템 연동과 도메인 서비스
+
+- 외부 시스템이나 타 도메인과의 연동 기능도 도메인 서비스가 될 수 있다. 
+
+  - 예를 들어 설문조사 시스템과 사용자 역할 관리 시스템이 분리되어 있다고 하자. 설문 조사 시스템은 설문 조사를 생성할 때 사용자가 생성 권한을 가진 역할인지 확인하기 위해 역할 관리 시스템과 연동해야 한다.
+
+- 시스템간 연동은 HTTP API 호출로 이루어질 수 있지만 설문 조사 도메인 입장에서는 사용자가 설문 조사 생성 권한을 가졌는지 확인하는 도메인 로직으로 볼 수 있다. 이 도메인 로직은 다음과 같은 도메인 서비스로 표현할 수 있다. 여기서 중요한 점은 도메인 로직 관점에서 인터페이스를 작성했다는 것이다. 역할 관리 시스템과 연동한다는 관점으로 인터페이스를 작성하지 않았다.
+
+  ~~~java
+  public interface SurveyPermissionChecker {
+  	boolean hasUserCreationPermission(Long userId);
+  }
+  ~~~
+
+  - 응용 서비스는 이 도메인 서비스를 이용해서 생성 권한을 검사한다.
+
+  ~~~java
+  public class CreateSurveyService {
+    private SurveyPermissionChecker permissionChecker;
+  
+    public Long createSurvey(CreateSurveyRequest req) {
+      validate(req);
+      // 도메인 서비스를 이용해서 외부 시스템 연동을 표현
+      if(!permissionChecker.hasUserCreationPermission(req.getRequestorId())) {
+        throw new NoPermissionException();
+      }
+    }
+    //...
+  }
+  ~~~
+
+  - SurveyPermissionCheck 인터페이스를 구현한 클래스는 인프라스트럭처 영역에 위치해 연동을 포함한 권한 검사 기능을 구현한다.
+
