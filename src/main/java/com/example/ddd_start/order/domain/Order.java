@@ -6,6 +6,9 @@ import static com.example.ddd_start.order.domain.value.OrderState.PREPARING;
 import static com.example.ddd_start.order.domain.value.OrderState.SHIPPED;
 
 import com.example.ddd_start.common.domain.Money;
+import com.example.ddd_start.coupon.domain.Coupon;
+import com.example.ddd_start.member.domain.MemberGrade;
+import com.example.ddd_start.order.domain.service.DiscountCalculationService;
 import com.example.ddd_start.order.domain.value.OrderState;
 import com.example.ddd_start.order.domain.value.Orderer;
 import com.example.ddd_start.order.domain.value.ShippingInfo;
@@ -55,7 +58,9 @@ public class Order {
   @Embedded
   private Orderer orderer;
   private Instant createdAt;
-
+  @Embedded
+  @AttributeOverride(name = "amount", column = @Column(name = "payment_amounts"))
+  private Money paymentAmounts;
 
   public Order(List<OrderLine> orderLines, ShippingInfo shippingInfo, Orderer orderer) {
     this.orderNumber = generateOrderNumber();
@@ -109,7 +114,7 @@ public class Order {
 
   public void completePayment() {
     if (orderState != PAYMENT_WAITING) {
-      throw new IllegalStateException("이미 결제과 완료된 주문입니다.");
+      throw new IllegalStateException("이미 결제가 완료된 주문입니다.");
     }
     this.orderState = PREPARING;
   }
@@ -137,5 +142,13 @@ public class Order {
     if (orderState != PAYMENT_WAITING || orderState != PREPARING) {
       throw new IllegalStateException("이미 출고 됬습니다.");
     }
+  }
+
+  public void calculateAmounts(
+      DiscountCalculationService disCalSvc, MemberGrade grade, List<Coupon> coupons
+  ) {
+    Money totalAmounts = getTotalAmounts();
+    Money discountAmounts = disCalSvc.calculateDiscountAmounts(orderLines, coupons, grade);
+    this.paymentAmounts = totalAmounts.subtract(discountAmounts);
   }
 }

@@ -3,6 +3,7 @@ package com.example.ddd_start.order.application.service;
 import com.example.ddd_start.common.domain.error.ValidationError;
 import com.example.ddd_start.common.domain.exception.NoOrderException;
 import com.example.ddd_start.common.domain.exception.ValidationErrorException;
+import com.example.ddd_start.coupon.domain.Coupon;
 import com.example.ddd_start.member.domain.Member;
 import com.example.ddd_start.member.domain.MemberRepository;
 import com.example.ddd_start.order.application.model.ChangeOrderShippingInfoCommand;
@@ -10,6 +11,7 @@ import com.example.ddd_start.order.application.model.PlaceOrderCommand;
 import com.example.ddd_start.order.domain.Order;
 import com.example.ddd_start.order.domain.OrderRepository;
 import com.example.ddd_start.order.domain.dto.OrderDto;
+import com.example.ddd_start.order.domain.service.DiscountCalculationService;
 import com.example.ddd_start.order.domain.value.ShippingInfo;
 import java.util.ArrayList;
 import java.util.List;
@@ -27,6 +29,7 @@ public class OrderService {
 
   private final OrderRepository orderRepository;
   private final MemberRepository memberRepository;
+  private final DiscountCalculationService discountCalculationService;
 
   @Transactional
   public void cancelOrder(Long orderId) {
@@ -62,8 +65,17 @@ public class OrderService {
   public Long placeOrder(PlaceOrderCommand placeOrderCommand) {
     Order order = new Order(placeOrderCommand.getOrderLines(), placeOrderCommand.getShippingInfo(),
         placeOrderCommand.getOrderer());
+    order = calculatePaymentInfo(order, placeOrderCommand.getCoupons());
     orderRepository.save(order);
     return order.getId();
+  }
+
+  private Order calculatePaymentInfo(Order order, List<Coupon> coupons) {
+    Member member = memberRepository.findById(order.getOrderer().getMemberId())
+        .orElseThrow(NoSuchElementException::new);
+    order.calculateAmounts(discountCalculationService, member.getMemberGrade(), coupons);
+
+    return order;
   }
 
   @Transactional
