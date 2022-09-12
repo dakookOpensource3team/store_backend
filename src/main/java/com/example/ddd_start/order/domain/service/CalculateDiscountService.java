@@ -24,6 +24,6 @@ public class CalculateDiscountService {
     Customer customer = optionalCustomer.orElseThrow(NoSuchElementException::new);
 
     List<?> facts = Arrays.asList(customer, new Money(null));
-    calculateRuleEngine.evalutate(facts);
+    calculateRuleEngine.evaluate(facts);
   }
 }

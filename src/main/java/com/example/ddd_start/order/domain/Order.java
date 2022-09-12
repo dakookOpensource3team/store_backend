@@ -28,9 +28,9 @@ import javax.persistence.OneToMany;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+@Getter
 @Entity(name = "orders")
 @NoArgsConstructor
-@Getter
 public class Order {
 
   @Id
@@ -57,7 +57,7 @@ public class Order {
   private Instant createdAt;
 
 
-  public void Order(List<OrderLine> orderLines, ShippingInfo shippingInfo, Orderer orderer) {
+  public Order(List<OrderLine> orderLines, ShippingInfo shippingInfo, Orderer orderer) {
     this.orderNumber = generateOrderNumber();
     this.orderState = PAYMENT_WAITING;
     setOrderLines(orderLines);

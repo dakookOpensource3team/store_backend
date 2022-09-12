@@ -22,12 +22,22 @@ public class Member {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
+  @Column(columnDefinition = "varchar(30)")
+  private String email;
   @Column(columnDefinition = "varchar(15)")
   private String name;
   @Embedded
   private Password password;
   @Embedded
   private Address address;
+  private Boolean blocked;
+
+  public Member(String name, String email, Password password, Address address) {
+    this.name = name;
+    this.password = password;
+    this.address = address;
+    this.blocked = false;
+  }
 
   public void changePassword(String currentPassword, String changePassword) {
     if (!password.match(currentPassword)) {
@@ -38,5 +48,9 @@ public class Member {
 
   public void changeAddress(Address address) {
     this.address = address;
+  }
+
+  public void block() {
+    this.blocked = true;
   }
 }
