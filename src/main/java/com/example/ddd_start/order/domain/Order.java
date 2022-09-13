@@ -30,6 +30,7 @@ import javax.persistence.Id;
 import javax.persistence.OneToMany;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.Version;
 
 @Getter
 @Entity(name = "orders")
@@ -61,6 +62,9 @@ public class Order {
   @Embedded
   @AttributeOverride(name = "amount", column = @Column(name = "payment_amounts"))
   private Money paymentAmounts;
+
+  @Version
+  private Integer version;
 
   public Order(List<OrderLine> orderLines, ShippingInfo shippingInfo, Orderer orderer) {
     this.orderNumber = generateOrderNumber();
@@ -150,5 +154,9 @@ public class Order {
     Money totalAmounts = getTotalAmounts();
     Money discountAmounts = disCalSvc.calculateDiscountAmounts(orderLines, coupons, grade);
     this.paymentAmounts = totalAmounts.subtract(discountAmounts);
+  }
+
+  public boolean matchVersion(Integer version) {
+    return this.version.equals(version);
   }
 }

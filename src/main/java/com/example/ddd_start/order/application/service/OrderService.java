@@ -3,11 +3,13 @@ package com.example.ddd_start.order.application.service;
 import com.example.ddd_start.common.domain.error.ValidationError;
 import com.example.ddd_start.common.domain.exception.NoOrderException;
 import com.example.ddd_start.common.domain.exception.ValidationErrorException;
+import com.example.ddd_start.common.domain.exception.VersionConflictException;
 import com.example.ddd_start.coupon.domain.Coupon;
 import com.example.ddd_start.member.domain.Member;
 import com.example.ddd_start.member.domain.MemberRepository;
 import com.example.ddd_start.order.application.model.ChangeOrderShippingInfoCommand;
 import com.example.ddd_start.order.application.model.PlaceOrderCommand;
+import com.example.ddd_start.order.application.model.StartShippingCommand;
 import com.example.ddd_start.order.domain.Order;
 import com.example.ddd_start.order.domain.OrderRepository;
 import com.example.ddd_start.order.domain.dto.OrderDto;
@@ -104,5 +106,15 @@ public class OrderService {
         command.getOrderer());
     orderRepository.save(order);
     return order.getId();
+  }
+
+  @Transactional
+  public void startShipping(StartShippingCommand command) {
+    Order order = orderRepository.findById(command.getId()).orElseThrow(NoOrderException::new);
+    if (!order.matchVersion(command.getVersion())) {
+      throw new VersionConflictException();
+    }
+
+    order.changeShipped();
   }
 }
