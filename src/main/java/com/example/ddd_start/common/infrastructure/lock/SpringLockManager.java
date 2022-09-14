@@ -85,6 +85,9 @@ public class SpringLockManager implements LockManager {
   @Override
   public void checkLock(LockId lockId) throws LockException {
     Optional<LockData> lockData = getLockData(lockId);
+    if (!lockData.isPresent()) {
+      throw new NoLockException();
+    }
   }
 
   private Optional<LockData> getLockData(LockId lockId) {
