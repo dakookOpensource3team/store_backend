@@ -91,11 +91,11 @@ public class SpringLockManager implements LockManager {
   }
 
   private Optional<LockData> getLockData(LockId lockId) {
-    List<LockData> lockDatas = jdbcTemplate.query(
+    List<LockData> lockData = jdbcTemplate.query(
         "select * from locks where lock_id = ?",
         lockDataRowMapper, lockId.getValue());
 
-    return handleExpiration(lockDatas);
+    return handleExpiration(lockData);
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
