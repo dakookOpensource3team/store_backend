@@ -2825,7 +2825,258 @@ public class DiscountCalculationService {
 
 
 
-### 8.4 오프라인 선점 잠금
+### 8.4 오프라인 선점 잠금 - Offline Pessmistic Lock
+
+<img src="./img/transaction7.jpg" style="zoom:33%;" />
+
+- 컨플루언스는 사전에 충돌 여부를 알려주지만 동시에 수정하는 것을 막지는 않는다. 더 엄격하게 데이터 충동을 막고 싶다면 누군가 수정화면을 보고 있을 때 수정 화면 자체를 실행하지 못하도록 해야 한다.
+- 한 트랜잭션 범위에서만 적용되는 선점 잠금 방식이나, 나중에 버전 충돌을 확인하는 비선점 잠금 방식으로는 이를 구현할 수 없다. 이 때 필요한 것이 오프라인 선점 잠금 방식이다.
+
+- 단일 트랜잭션에서 동시 변경을 막는 선점 잠금 방식과 달리 오프라인 선점 잠금은 여러 트랜잭션에 걸쳐 동시 변경을 막는다. 첫 번째 트랜잭션을 시작할 때 오프라인 잠금을 선점하고, 마지막 트랜잭션에서 잠금을 해체한다. 잠금을 해체하기 전까지 다른 사용자는 잠금을 구할 수 없다.
+
+  - 예를 들어 수정 기능을 진행할 때, 보통 수정 기능은 두개의 트랜잭션으로 구성된다. 
+
+  - 첫 번째 트랜잭션은 폼을 보여주고, 두번째 트랜잭션은 데이터를 수정한다. 
+
+  - 오프라인 선점 잠금을 사용하면 아래의 그림과 같이 
+
+    - 과정 1처럼 폼 요청 과정에서 잠금을 선점하고 
+    - 과정 3처럼 수정 과정에서 잠금을 해제 한다. 
+    - 이미 잠금을 선점한 상태에서 다른 사용자가 폼을 요청하면 과정 2처럼 잠금을 구할 수 없어 에러 화면을 보게 된다.
+
+    <img src="./img/transaction8.jpg" style="zoom:33%;" />
+
+  - 그림에서 사용자 A가 과정 3의 수정 요청을 수행하지 않고 프로그램을 종료하면 어떻게 될까? 
+
+    - 이 경우 잠금을 해제하지 않으므로 다른 사용자는 영원히 잠금을 구할 수 없는 상황이 발생한다. 
+    - 이런 사태를 방지하기 위해 오프라이 선점 방식은 잠금 유효 시간을 가져야 한다. 유효 시간이 지나면 자동으로 잠금을 해제해서 다른 사용자가 잠금을 일정 시간 후에 다시 구할 수 있도록 해야한다.
+
+  - 사용자 A가 잠금 유효 시간이 지난 후 1초 뒤에 3번 과정을 수행했다고 가정하자. 잠금이 해제 되어 사용자 A는 수정에 실패하게 된다. 이런 상황을 만들지 않으려면 일정 주기로 유효시간을 증가시키는 방식이 필요하다. 예를 들어 수정 폼에서 1분 단위로 Ajax 호출을 해서 잠금 유효 시간을 1분씩 증가시키는 방법이 있다.
 
 
 
+#### 8.4.1 오프라인 선전 잠금을 위한 LockManager 인터페이스와 관련 클래스
+
+- 오프라인 선점 잠금은 크게 잠금 선점 시도, 잠금 확인, 잠금 해제, 잠금 유효시간 연장의 네 가지 기능이 필요하다.
+
+  - LockManager 인터페이스 
+
+  ~~~java
+  package com.example.ddd_start.common.domain;
+  
+  import java.util.concurrent.locks.Lock;
+  
+  public interface LockManager {
+  
+    String tryLock(String type, String id) throws LockException;
+  
+    void checkLock(String lockId) throws LockException;
+  
+    void releaseLock(String lockId) throws LockException;
+  
+    void extendLockExpiration(String lockId, Long inc) throws Lock;
+  
+  }
+  ~~~
+
+  - tryLock(): type과 id를 파라미터로 갖으며, type은 잠글 대상 타입, id는 식별자를 의미한다.
+    - 예를 들어 실별자가 10인 Article에 대해 잠금을 구하고 싶다면 tryLock()을 실행할 때 'domain.Article'을 type 값으로 주고 '10'을 id 값으로 주면된다.
+    - 리턴으로는 잠금을 식별할 때 사용한 LockId를 리턴한다. 잠금을 구하면 잠금을 해제하거나, 잠금이 유효한지 검사하거나 잠금 유효시간을 연장할 때 LockId를 사용한다.
+
+  - LockId 클래스
+
+  ~~~java
+  package com.example.ddd_start.common.domain;
+  
+  import lombok.Getter;
+  import lombok.RequiredArgsConstructor;
+  
+  @Getter
+  @RequiredArgsConstructor
+  public class LockId {
+  
+    private final String value;
+  
+  }
+  ~~~
+
+  - 오프라인 선점 잠금이 필요한 코드는 LockManager#tryLock()을 이용해서 잠금을 시도한다. 
+  - 잠금에 성공하면 tryLock()은 LockId를 리턴한다. 이 LockId는 다음에 잠금을 해제할 때 사용한다. LockId가 없으면 잠금을 해제할 수 없으므로 LockId를 어딘가에 보관해야 한다.
+
+- 컨트롤러가 오프라인 선점 잠금 기능을 이용해서 데이터 수정 폼에 동시에 접근하는 것을 제어하는 코드의 예이다.
+
+  ~~~
+  // 서비스: 서비스는 잠금 ID를 리턴한다.
+  public DataAndLockId getDataWithLock(Long id){
+  	//1. 오프라인 선점 잠금 시도
+  	LockId lockId = lockManager.tryLock("data", id);
+  	//2. 기능 실행
+  	Data data = someDao.select(id);
+  	return new DataAndLockId(data, lockId);
+  }
+  
+  //컨트롤러: 서비스가 리턴한 잠금ID를 모델로 뷰에 전달한다.
+  @RequestMapping("/some/edit/{id}")
+  public String editForm(@PathVariable("id") Long id, ModelMap model) {
+  	DataAndLockId dl = dataService.getDataWithLock(id);
+  	model.addAttribute("data", dl.getData());
+  	//3. 잠금 해제에 사용할 LockId를 모델에 추가
+  	model.addAttribute("lockId", dl.getLockId());
+  	return "editForm";
+  }
+  ~~~
+  
+  	- 잠금을 선점하는데 실패하면 LockException이 발생한다. 이때는 다른 사용자가 데이터를 수정 중이니 나중에 다시 시도하라는 안내화면을 보여주면 된다.
+
+ - 잠금을 해제하는 코드는 다음과 같이 전달받은 LockId를 이용한다.
+
+   ~~~java
+   //서비스: 잠금을 해제한다.
+   public void edit(EditRequest editReq, LockId lockId){
+   	//1. 잠금 선점 확인
+   	lockManager.checkLock(lockId);
+   	
+   	//2. 기능 실행
+   	....
+   	
+   	
+   	//3. 잠금 해제
+   	lockManager.releaseLock(lockId);
+   }
+   
+   //컨트롤러: 서비스를 호출할 때 잠금 ID를함께 전달
+   @PostMapping(value ="/some/edit/{id}")
+   public String edit(@PathVariable("id") Long id, 
+   	@ModelAttribute("editReq") EditRequest editReq,
+   	@RequestParam("lid") String lockIdValue) {
+     
+     	editReq.setId(id);
+       someEditService.edit(editReq, new LockId(lockIdValue));
+   		return "editSuccess";
+   }
+   ~~~
+
+- 서비스 코드에서 LockManager#checkLock() 메서드를 가장 먼저 실행하는데, 잠금을 선점한 이후에 실행하는 기능은 다음과 같은 상황을 고려하여 반드시 주어진 LockId를 갖는 잠금이 유효한지 확인해야 한다.
+  - 잠금 유효 시간이 지났으면 이미 다른 사용자가 잠금을 선점한다.
+  - 잠금을 선점하지 않은 사용자가 기능을 실행했다면 기능 실행을 막아야한다.
+
+
+
+#### 8.4.2 DB를 이용한 LockManager 구현
+
+- 잠금 정보를 저장할 테이블과 인덱스를 생성한다.
+
+  ~~~sql
+  create table locks (
+      type varchar(255),
+      id varchar(255),
+      lock_id varchar(255),
+      expiration_time datetime,
+      primary key (type, id)
+  ) character set utf8;
+  
+  create unique index locks_idx on locks(lock_id);
+  ~~~
+
+- Order 타입의 1번 식별자를 갖는 애그리거트에 대한 잠금을 구하고 싶다면 다음의 insert 쿼리를 잉요해서 테이블에 데이터를 삽입하면 된다.
+
+  ~~~sql
+  insert into locks values ('Order', '1', '생성한 lockid', '2016-03-28 09:10:00');
+  ~~~
+
+- type과 id 칼럼을 주인키로 지정해서 동시에 두 사용자가 특정 타입 데이터에 대한 잠금을 구하는 것을 방지했다.
+
+- 각 잠금마다 새로운 LockId를 사용하므로 lockid 필드를 유니크 인덱스로 설정했다. 잠금 유효 시간을 보관하기 위해 expiration_time 칼럼을 사용한다.
+
+  ~~~java
+  @Entity
+  @Table(name = "locks")
+  @Getter
+  @AllArgsConstructor
+  @NoArgsConstructor
+  public class LockData {
+  
+    @Id
+    private LockDataId lockDataId;
+    @Embedded
+    @AttributeOverride(name = "value", column = @Column(name = "lockId"))
+    private LockId lockId;
+    private Instant expiration_time;
+    
+    public Boolean isExpired() {
+      return expiration_time.isBefore(Instant.now());
+    }
+  }
+  ~~~
+
+- 스프링 JdbcTemplate을 이용한 SpringLockManger의 tryLock() 구현 코드 -> (이것은 서비스에 위치해야 하는가? 아니면 인프라에 위치해야 하는것인가? 트랜잭션을 관리하는 것은 서빗의 역할인데 그것이 궁금하다.)
+
+  ~~~java
+  @Component
+  public class SpringLockManager implements LockManager {
+  
+    private static final long LOCK_TIME_OUT = 1;
+    private JdbcTemplate jdbcTemplate;
+  
+    private RowMapper<LockData> lockDataRowMapper = (rs, rowNum) ->
+        new LockData(rs.getObject(1, LockDataId.class),
+            rs.getObject(2, LockId.class),
+            rs.getObject(3, Instant.class));
+  
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Override
+    public LockId tryLock(String type, String id) throws LockException {
+      checkAlreadyLocked(type, id);
+      LockId lockId = new LockId(UUID.randomUUID().toString());
+      locking(type, id, lockId);
+      return lockId;
+    }
+  
+    private void checkAlreadyLocked(String type, String id) {
+      List<LockData> locks = jdbcTemplate.query(
+          "select * from locks where type = ? and id = ?",
+          lockDataRowMapper, type, id);
+      Optional<LockData> lockData = handleExpiration(locks);
+      if (lockData.isPresent()) {
+        throw new AlreadyLockException();
+      }
+    }
+  
+    private Optional<LockData> handleExpiration(List<LockData> locks) {
+      if(locks.isEmpty()) return Optional.empty();
+  
+      LockData lockData = locks.get(0);
+      if (lockData.isExpired()) {
+        jdbcTemplate.update(
+            "delete  from locks where type =? and id = ?",
+            lockData.getLockDataId().getType(), lockData.getLockDataId().getId()
+        );
+        return Optional.empty();
+      } else {
+        return Optional.of(lockData);
+      }
+    }
+  
+    private void locking(String type, String id, LockId lockId) {
+      try {
+        int updatedCount = jdbcTemplate.update(
+            "insert into locks values (?, ?, ?, ?)",
+            type, id, lockId.getValue(), Instant.now().plus(LOCK_TIME_OUT, ChronoUnit.MINUTES));
+  
+        if (updatedCount == 0) {
+          throw new LockingFailException();
+        }
+      } catch (DuplicateKeyException e) {
+        throw new LockingFailException();
+      }
+    }
+  }
+  ~~~
+
+- 스프링 JdbcTemplate을 이용한 SpringLockManager의 나머지 구현 코드
+
+  ~~~java
+  @Transactional(propagation)
+  ~~~
+
+  
