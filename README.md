@@ -3076,7 +3076,43 @@ public class DiscountCalculationService {
 - 스프링 JdbcTemplate을 이용한 SpringLockManager의 나머지 구현 코드
 
   ~~~java
-  @Transactional(propagation)
+  {
+  //...
+  	@Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Override
+    public void checkLock(LockId lockId) throws LockException {
+      Optional<LockData> lockData = getLockData(lockId);
+      if (!lockData.isPresent()) {
+        throw new NoLockException();
+      }
+    }
+  
+    private Optional<LockData> getLockData(LockId lockId) {
+      List<LockData> lockData = jdbcTemplate.query(
+          "select * from locks where lock_id = ?",
+          lockDataRowMapper, lockId.getValue());
+  
+      return handleExpiration(lockData);
+    }
+  
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Override
+    public void releaseLock(LockId lockId) throws LockException {
+      jdbcTemplate.update(
+          "delete from locks where lock_id = ?", lockId.getValue());
+    }
+  
+    @Override
+    public void extendLockExpiration(LockId lockId, Long inc) throws LockException {
+      Optional<LockData> lockDataOpt = getLockData(lockId);
+      LockData lockData = lockDataOpt.orElseThrow(NoLockException::new);
+  
+      jdbcTemplate.update(
+          "update locks set expiration_time = ? where type =? and id = ?",
+          lockData.getExpiration_time().plus(inc, ChronoUnit.MINUTES),
+          lockData.getLockDataId().getType(), lockData.getLockDataId().getId());
+    }
+  }
   ~~~
 
   
