@@ -5,6 +5,8 @@ import com.example.ddd_start.common.domain.exception.PasswordNotMatchException;
 import javax.persistence.Column;
 import javax.persistence.Embedded;
 import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
@@ -31,6 +33,8 @@ public class Member {
   @Embedded
   private Address address;
   private Boolean blocked;
+  @Enumerated(EnumType.STRING)
+  private MemberGrade memberGrade;
 
   public Member(String name, String email, Password password, Address address) {
     this.name = name;
