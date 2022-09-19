@@ -3114,3 +3114,212 @@ public class DiscountCalculationService {
     }
   }
   ~~~
+
+
+
+
+### 9. 도메인 모델과 바운디드 컨텍스트
+
+#### 9.1 도메인 모델과 경계
+
+- 처음 도메인을 만들 때, 도메인을 완벽하게 표현하는 단일 도메인을 만드는 함정에 빠지기 쉽다.
+
+  - 한 도메인으로 하위 도메인을 모두 표현하려고 하면 오히려 모든 하위 도메인에 맞지 않은 모델을 만들게 된다.
+
+  - ex) 상품이라는 모델에 대하여 이름은 같으나 각각 의미하는 바는 다르다.
+    - 카탈로그에서의 상품 - 상품 상세정보, 이미지, 가격 등의 상품 정보
+    - 배송에서의 상품 - 실제 배송되고 있는 상품
+    - 재고에서의 상품 - 창고에서 관리하기 위한 상품
+
+- 논리적으로는 같은 존재처럼 보이지만 하위 도메인에 따라 다른 용어를 사용하는 경우도 있다.
+
+  - ex) 
+    - 카탈로그 도메인에서의 상품이, 검색 도메인에서는 문서로 불리기도 한다.
+    - 시스템을 사용하는 사람을 회원 도메인에서는 회원이라고 부르지만, 주문 도메인에서는 주문자라고 부르고, 배송 도메인에서는 보내는 사람이라고 부른다.
+
+​			<img src="/Users/taewoo.kim/Documents/02.Study/ddd_start/img/domain1.jpg" alt="domain1" style="zoom:33%;" />
+
+- 하위 도메인마다 같은 용어라도 의미가 다르고 같은 대상이라도 지칭하는 용어가 다를 수 있기 때문에 한 개의 모델로 모든 하위 도메인을 표현하려는 시도는 올바른 방법이 아니다.
+
+  > 질문1. 그렇다면 지칭하는 용어가 다르다면 각각의 용어에 맞게 모델을 만드는 것이 맞을까? 아니면 파라미터 명을 의미에 맞게 짓는게 맞을까? 
+  >
+  > 질문2. 지칭하는 용어가 같다면, 각각의 도메인 모델을 생성해주는 것이 맞는것인가? 이경우에는 Entity로 가져가야 하는 것인가? 또는 Value로 가져가야 하는 것인가?
+
+- 하위 도메인마다 사용하는 용어가 다르기 때문에 올바른 도메인 모델을 개발하려면 하위 도메인마다 모델을 만들어야 한다. (질문1의 답인 것 같다.)
+  - 각 모델은 명시적으로 구분되는 경계를 가져서 섞이지 않도록 해야 한다. 
+  - 여러 하위 도메인의 모델이 섞이기 시작하면 모델의 의미가 약해질 뿐만 아니라, 여러 도메인의 모델이 서로 얽히기 때문에 각 하위 도메인별로 다르게 발전하는 요구사항을 모델에 반영하기 어려워진다.
+- 모델은 특정한 컨텍스트(문맥) 하에서 완전한 의미를 갖는다. 같은 제품이라도 카탈로그 컨텍스트와 재고 컨텍스트에서 의미가 서로다르다.
+- 구분되는 경계를 갖는 컨텍스트를 DDD에서는 **바운디드 컨텍스트**라고 부른다.
+
+
+
+#### 9.2 바운디드 컨텍스트
+
+- 바운디드 컨텍스트는 모델의 경계를 결정하며 한개의 바운디드 컨텍스트는 논리적으로 한 개의 모델을 갖는다.
+
+  - 바운디드 컨텍스트는 용어를 기준으로 컨텍스트를 분리할 수 있다. 
+  - 바운디드 컨텍스트는 실제로 사용자에게 기능을 제공하는 물리적 시스템으로, 도메인 모델은 이 바운디드 컨텍스트 안에서 도메인을 구현한다.
+
+- 이상적으로느 하위 도메인과 바운디드 컨텍스트가 1대1 관걔를 가지는 것이 좋다. 허나 현실은 그렇지 않다.
+
+  - 바운디드 컨텍스트는 기업의 팀 조직 구조에 따라 결정되기도 한다.
+
+  <img src="/Users/taewoo.kim/Documents/02.Study/ddd_start/img/domain2.jpg" alt="domain2" style="zoom:33%;" />
+
+  - 규모가 작은 기업은 하나의 시스템에서 회원, 카탈로그, 재고, 구매, 결제와 관련된 모든 기능을 제공한다. 여러 하위 도메인을 한개의 바운디드 컨텍스트에서 구현한다.
+
+    - 여러 하위 도메인을 하나의 바운디드 컨텍스트에서 개발할 때, 주의할 점은 하위 도메인의 모델이 섞이지 않도록 하는 것이다.
+
+    - 비록 한개의 바운디드 컨텍스트가 여러 하위 도메인을 포함하더라도 하위 도메인 마다 구분되는 패키지를 갖도록 구현해야 하며, 이렇게 함으로써 하위 도메인을 위한 모델이 서로 뒤섞이지 않고 하위 도메인 마다 바운디드 컨텍스트를 갖는 효과를 낼 수 있다.
+
+      <img src="/Users/taewoo.kim/Documents/02.Study/ddd_start/img/domain3.jpg" alt="domain3" style="zoom:33%;" />
+
+> 질문3. 도메인 모델 이 바운디드 컨텍스트안에 속하는 것인가? 아니면 바운디드 컨텍스트가 도메인 모델안에 속하는 것인가?
+
+- 바운디드 컨텍스트는 도메인 모델을 구분하는 경계가 되기 때문에 바운디드 컨텍스트는 구현하는 하위 도메인에 알맞은 모델을 포함한다.
+
+  - 같은 상품이라도 카탈로그 바운디드 컨텍스트의 상품과 재고 바운디드 컨텍스트의 상품은 각 컨텍스트에 맞는 모델을 갖는다.
+
+  - 회원의 Member는 애그리거트 루트이지만 주문의 Orderer는 밸류가 된다.
+
+  - 카탈로그의 Product는 상품이 속할 Category와 연관을 갖지만 재고의 Product는 카탈로그의 Category와 연관을 맺지 않는다.
+
+    <img src="/Users/taewoo.kim/Documents/02.Study/ddd_start/img/domain4.jpg" alt="domain4" style="zoom:33%;" />
+
+#### 
+
+#### 9.3 바운디드 컨텍스트 구현
+
+- 바운디드 컨텍스트가 도메인 모델만 포함하는 것은 아니다. 바운디드 컨텍스는 도메인 기능을 사용자에게 제공하는 데 필요한 표현 영역, 응용 서비스, 인프라스트럭처 영역을 모두 포함한다. 도메인 모델의 데이터 구조가 바뀌면 DB 테이블 스키마도 함께 변경해야 하므로 테이블도 바운디드 컨텍스트에 포함된다.
+
+<img src="/Users/taewoo.kim/Documents/02.Study/ddd_start/img/domain5.jpg" alt="domain5" style="zoom:33%;" />
+
+- 모든 바운디드 컨텍스트를 반드시 도메인 주도로 개발할 필요는 없다.
+  - 도메인이 단순하다면 DAO와 데이터 중심의 밸류객체를 이용해서 기능을 구현해도 기능을 유지보수하는데 큰 문제는 없다.
+  - 서비스-DAO 구조를 사용하면 도메인 기능이 서비스에 흩어지게 되지만 도메인 기능 자체가 단순하면 서비스-DAO로 구성된 CRUD 방식을 사용해도 코드를 유지 보수하는데 문제 되지 않는다고 한다. - 책의 필자
+
+<img src="/Users/taewoo.kim/Documents/02.Study/ddd_start/img/domain6.jpg" alt="domain6" style="zoom:33%;" />
+
+- 한 바운디드 컨텍스트에서 두 방식을 혼합새서 사용할 수도 있다.
+
+  - 대표적인 예가 CQRS 패턴이며, CQRS는 Command Query Responsibility Segregation의 약자로 상태를 변경하는 명령 기능과 내용을 조회하는 쿼리 기능을 위한 모델을 구분하는 패턴이다.
+
+  - 이 패턴을 단일 바운디드 컨텍스트에 적용하면 아래의 그림과 같이 상태 변경과 관련된 기능은 도메인 모델 기반으로 구현하고, 조회 기능은 서비스-DAO를 이용해서 구현할 수 있다.
+
+    <img src="/Users/taewoo.kim/Documents/02.Study/ddd_start/img/domain7.jpg" alt="domain7" style="zoom:33%;" />
+
+- 각 바운디드 컨텍스트는 서로 다른 구현 기술을 사용할 수도 있다.
+
+  - 웹 MVC는 스프링 MVC를 사용하고 레포지토리 구현 기술로는 JPA/하이버네이트를 사용하는 바운디드 컨텍스트가 존재할 수도 있다. 
+  - Netty를 이용해서 RESET API를 제공하고, 마이바티스를 레포지토리 구현 기술로 사요하는 바운디드 컨텍스트가 존재할 수도 있다.
+  - 어떤 바운디드 컨텍스트는 RDBMS 대신 몽고DB와 같은 NoSQL을 사용할 수도 있을 것이다.
+
+- 바운디드 컨텍스트가 반드시 사용자에게 보여지는 UI를 가지고 있어야 하는 것은 아니다. 
+
+  - 아래의 그림과 같이 카탈로그 바운디드 컨텍스트를 통해 상세 정보를 읽어온 뒤, 리뷰 바운디드 컨텍스트의 REST API를 직접 호출해서 로딩한 JSON 데이터를 알맞게 가공해서 리뷰 목록을 보여줄 수도 있다.
+
+  <img src="/Users/taewoo.kim/Documents/02.Study/ddd_start/img/domain8.jpg" alt="domain8" style="zoom:33%;" />
+
+  - 아래의 그림과 같이 UI를 처리하는 서버를 두고, UI 서버에서 바운디드 컨텍스트와 통신해서 사용자 요청을 처리하는 방법도 있다.
+
+    <img src="/Users/taewoo.kim/Documents/02.Study/ddd_start/img/domain9.jpeg" alt="domain9" style="zoom:33%;" />
+
+  - 이 구조에서 UI 서버는 각 바운디드 컨텍스트를 위한 파사트 역할을 수행한다. 브라우저가 UI서버에 요청을 하면 UI 서버는 카탈로그와 리뷰 바운디드 컨텍스트로 부터 필요한 정보를 읽어와 조합한 뒤, 브라우제어 응답을 제공한다.
+
+
+
+#### 9.4 바운디드 컨텍스트 간 통합
+
+- 온라인 쇼핑 사이트에서 매출 증대를 위해 카탈로그 하위 도메인에 개인화 추천 기능을 도입한다고 하자.
+
+  - 개인화 추천기능은 기존에 카탈로그를 개발한 팀이 아닌 추천 기능을 개발하기 위한 새로운 팀을 꾸려서 진행한다.
+
+  - 이렇게 되면 카탈로그 하위 도메인에는 기존 카탈로그를 위한 바운디드 컨텍스트와 추천 기능을 위한 바운디드 컨텍스트가 생긴다.
+
+    <img src="/Users/taewoo.kim/Documents/02.Study/ddd_start/img/domain10.jpg" alt="domain10" style="zoom:33%;" />
+
+  - 두 팀이 관련된 바운디드 컨텍스트를 개발하면 자연스럽게 두 바운디드 컨텍스트 간 통합이 발생한다. 
+
+    - 통합이 필요한 기능: 사용자가 제품 상세 페이지를 볼 때, 보고 있는 유사한 상품 목록을 하단에 보여준다.
+
+  - 사용자가 카탈로그 바운디드 컨텍스트에 추천 제품 목록을 요청하면, 카탈로그 바운디드 컨텍스트는 추천 바운디드 컨텍스트로부터 추천 정보를 읽어와 추천 제품 목록을 제공한다.
+
+    - 이 때 카탈로그 컨텍스트와 추천 컨텍스트의 도메인 모델은 서로 다르다. 카탈로그는 제품을 중심으로 도메인 모델을 구현하지만, 추천은 추천 연산을 위한 모델을 구현한다.
+    - 카탈로그 시스템은 추천 시스템으로부터 추천 데이터를 받아오지만, 카탈로그 시스템에서는 추천의 도메인 모델을 사용하기보다는 카탈로그 도메인 모델을 사용해서 추천 상품을 표현해준다.
+
+    ~~~java
+    /**
+    * 상품 추천 기능을 표현하는 도메인 서비스
+    */
+    public interface ProductRecommendationService {
+    	List<Prodcut> getRecommendationsOf(ProductId id);
+    }
+    ~~~
+
+    - 도메인 서비스를 구현한 클래스는 인프라스트럭처 영역에 위치한다. 이 클래스는 외부시스템과의 연동을 처리하고, 외부 시스템의 모델과 현재 도메인 모델간의 변환을 책임진다.
+  
+      <img src="/Users/taewoo.kim/Documents/02.Study/ddd_start/img/domain11.jpg" alt="domain11" style="zoom:33%;" />
+  
+    - 위의 그림과 같이 RecSystemClient는 외부 추천 시스템이 제공하는 REST API를 이용해서 특정 상품을 위한 추천 상품 목록을 로딩한다.
+  
+    - 이 REST API가 제공하는 데이터는 추천 시스템의 모델을 기반으로 하고 있기 때문에 API 응답은 다음과 같이 카탈로그 도메인 모델과 일치하지 않는 데이터를 제공할 것이다.
+  
+      ~~~json
+      [
+      	{
+      		"itemId": "PROD-1000",
+      		"type": "PRODUCT",
+      		"rank": 100
+      	},
+      	{
+      		"itemId": "PROD-1001",
+      		"type": "PRODUCT",
+      		"rank": 54
+      	}
+      ]
+      ~~~
+  
+    - RecSystemClient는 REST API로부터 데이터를 읽어와 카탈로그 도메인에 맞는 상품 모델로 변환한다.
+  
+      ~~~java
+      public class RecSystemClient implements ProductRecommendationService{
+      
+        private ProductRepository productRepository;
+      
+        @Override
+        public List<Product> getRecommendationsOf(Long productId) {
+          List<RecommendationItem> items = getRecItems(productId);
+          return toProducts(items);
+        }
+      
+        private List<RecommendationItem> getRecItems(String itemId) {
+          //externalRecClient는 외부 추천 시스템을 위한 클라이언트라고 가정
+          return externalRecClient.getRecs(itemId);
+        }
+      
+        private List<Product> toProducts(List<RecommendationItem> items) {
+          return items.stream()
+              .map(item -> toProductId(item.getItemId))
+              .map(prodId -> productRepository.findById(prodId))
+              .collect(Collectors.toList());
+        }
+      
+        private Long toProductId(String itemId) {
+          return productRepository.findByExternalId(itemId).getId;
+        }
+      }
+      ~~~
+  
+    - getRecItems를 통해 외부 추천 시스템으로부터 추천 상품 목록을 가져온뒤, toProducts를 통해 추천 상품 id를 가지고, 카테고리 바운디드에서 상품정보를 찾아서 반환해준다.
+  
+  - 두 모델 간의 변환 과정이 복잡하면 변환 처리를 위한 별도 클래스를 만들고 이 클래스에버 변환을 처리해도 된다.
+  
+    <img src="/Users/taewoo.kim/Documents/02.Study/ddd_start/img/domain12.jpg" alt="domain12" style="zoom:33%;" />
+  
+  - REST API를 호출하는 것(또는 요새 유행하는 rpc 인지 grpc인지도 해당할 것 같다)은 두 바운디드 컨텍스트를 직접 통합하는 방법이다. 직접 통합하는 대신 간접적으로 통합하는 방법도 있다.
+  
+  - 대표적인 간접 통합 방식이 메시지 큐를 사용하는 것이다.
+  
+    - 추천 시스템은 사용자가 조회한 상품 이력이나 구매 이력과 같은 사용자 활동 이력을 필요로 하는데 이 내역을 전달할 때 메시지 큐를 사용할 수 있다.
+  
+    <img src="/Users/taewoo.kim/Documents/02.Study/ddd_start/img/domain13.jpg" alt="domain13" style="zoom:33%;" />
