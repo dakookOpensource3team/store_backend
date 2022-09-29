@@ -5,7 +5,9 @@ import com.example.ddd_start.coupon.domain.Coupon;
 import com.example.ddd_start.member.domain.MemberGrade;
 import com.example.ddd_start.order.domain.OrderLine;
 import java.util.List;
+import org.springframework.stereotype.Service;
 
+@Service
 public class DiscountCalculationService {
 
   public Money calculateDiscountAmounts(

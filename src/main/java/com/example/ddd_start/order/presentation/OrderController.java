@@ -26,7 +26,11 @@ public class OrderController {
   public Long order(@RequestBody PlaceOrderRequest req, BindingResult bindingResult) {
     try {
       Long orderId = orderService.placeOrderV2(
-          new PlaceOrderCommand(req.getOrderLines(), req.getShippingInfo(), req.getOrderer()));
+          new PlaceOrderCommand(
+              req.getOrderLines(),
+              req.getShippingInfo(),
+              req.getOrderer(),
+              null));
 
       return orderId;
     } catch (ValidationErrorException e) {

@@ -3,7 +3,12 @@ package com.example.ddd_start.order.domain;
 import com.example.ddd_start.order.domain.dto.OrderResponseDto;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
+import javax.persistence.LockModeType;
+import javax.persistence.QueryHint;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.QueryHints;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -24,4 +29,19 @@ public interface OrderRepository extends CrudRepository<Order, Long>, OrderRepos
   List<Order> findOrdersByIdOrderByCreatedAtDescTotalAmounts(Long id);
 
   List<Order> findAllByIdAndCreatedAtBetween(Long id, Instant startAt, Instant endedAt);
+
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @QueryHints({
+      @QueryHint(name = "javax.persistence.lock.timeout", value = "2000")
+  })
+  @Query("select o from orders o where o.id = :id")
+  Optional<Order> findByIdPessimistic(Long id);
+
+
+  @Lock(LockModeType.OPTIMISTIC)
+  @QueryHints({
+      @QueryHint(name = "javax.persistence.lock.timeout", value = "2000")
+  })
+  @Query("select o from orders o where o.id = :id")
+  Optional<Order> findByIdOptimistic(Long id);
 }
