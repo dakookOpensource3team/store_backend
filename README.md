@@ -2587,7 +2587,7 @@ public class DiscountCalculationService {
 
 ### 8. 애그리거트 트랜잭션 관리
 
-### 8.1 애그리거트와 트랜잭션
+#### 8.1 애그리거트와 트랜잭션
 
 <img src="./img/transaction1.jpeg" alt="transaction1" style="zoom:90%;" />
 
@@ -2600,7 +2600,7 @@ public class DiscountCalculationService {
     - 운영자가 배송지 정보를 조회한 이후에 고객이 정보를 변경하면, 운영자가 애그리거트를 다시 조회한 뒤 수정하도록 한다.
   - 이 두 가지는 애그리거트 자체의 트랜잭션과 관련이 있다. DBMS가 지원하는 트랜잭션과 함께 애그리거트를 위한 추가적인 트랜잭션 처리 기법이 필요하다. 애그리거트에 대해 사용할 수 있는 트랜잭션 처리 방식에는 `선점 잠금(비관적 락) Pessimistic Lock`과 `비선점 잠금(낙관적 락) Optimistic Lock`인 두가지 방식이 있다.
 
-### 8.2 선점 잠금 (비관적 락) - Perssimistic Lock
+#### 8.2 선점 잠금 (비관적 락) - Perssimistic Lock
 
 - 비관적 락은 먼저 애그리거트를 구한 스레드가 애그리거트 사용이 끝날 때 까지 다른 스레드가 해당 애그리거트를 수정하지 못하게 막는 방식이다.
 
@@ -2684,7 +2684,7 @@ public class DiscountCalculationService {
 
 
 
-### 8.3 비선점 잠금(낙관적 락) - Optimistick Lock
+#### 8.3 비선점 잠금(낙관적 락) - Optimistick Lock
 
 - 선점 잠금이 강력해 보이긴 하지만 선점 잠금으로 모든 트랜잭션 충돌 문제가 해결되는 것은 아니다.
 
@@ -2825,7 +2825,7 @@ public class DiscountCalculationService {
 
 
 
-### 8.4 오프라인 선점 잠금 - Offline Pessmistic Lock
+#### 8.4 오프라인 선점 잠금 - Offline Pessmistic Lock
 
 <img src="./img/transaction7.jpg" style="zoom:33%;" />
 
@@ -3492,3 +3492,151 @@ public class DiscountCalculationService {
 - 위의 그림은 오픈 호스트 서비스(OHS)와 안티 코럽션 계층(ACL)만 표시했는데 하위 도메인이나 조직 구조를 함께 표시하면 도메인을 포함한 전체 관계를 이해하는데 도움이 된다.
 - 컨텍스트 맵은 시스템의 전체 구조를 보여준다.
   - 하위 도메인과 일치하지 않는 바운디드 컨텍스트를 찾아 도메인에 맞게 바운디드 컨텍스트를 조절하고, 사업의 핵심 도메인을 위해 조직 역량을 어떤 바운디드 컨텍스트에 집중할지 파악하는데 도움을 준다.
+
+### 10. 이벤트
+
+#### 10.1 시스템간 강결합 문제
+
+- 쇼핑몰에서 구매를 취소하면 환불을 처리해야 한다.
+- 응용 서비스에서 환불 기능을 실행할 수 있다.
+
+~~~java
+@Slf4j
+@Service
+public class CancelOrderService {
+
+  private RefundService refundService;
+  private OrderRepository orderRepository;
+
+  @Transactional
+  public void cancel(Long orderId) {
+    Order order = orderRepository.findById(orderId).orElseThrow(NoOrderException::new);
+    order.cancel();
+
+    order.startRefund();
+    try {
+      refundService.refund(order.getPaymentId());
+      order.completeRefund();
+    } catch (Exception e) {
+      log.error(e.getMessage());
+    }
+  }
+
+}
+~~~
+
+- 보통 결제 시스템은 외부에 존재하므로 RefundService는 외부에 있는 결제 시스템이 제공하는 환불서비스를 호출한다.
+
+- 외부 서비스를 사용하면 대표적으로 두가지 문제가 발생할 수 있다.
+
+  - 외부 서비스가 정상이 아니여서 Exception이 발생할 경우, 트랜잭션 처리를 어떻게 해야 되는 것인가이다.
+
+    - 환불을 취소했으므로, 트랜잭션을 롤백하는것이 맞아 보일 수 있다. 하지만 주문 상태는 취소로 변경하고, 환불처리를 나중에 다시 시도하는 방식으로도 처리할 수 있다.
+
+  - 성능에 대하여 문제가 생긴다.
+
+    - 외부 서비스에서 환불을 하는데 30초가 걸리면, 주문 취소 기능은 30초 동안 기달려야 한다. 즉 외부 서비스 성능에 직접적인 영향을 받는다.
+
+  - 번외로, 도메인 객체에 서비스를 전달하면 추가로 설계상 문제가 나타날 수 있다.
+
+    - 도메인에 환불처리 코드를 넣어다고 하면, 주문 로직과 결제 로직이 섞이는 문제가 발생한다.
+
+      ~~~java
+      public class Order {
+      	public void cancel(RefundService refundService) {
+      	  // 주문 로직
+      		verifyNotYetShipped();
+      		this.state = CANCEL;
+      		
+      		// 결제 로직
+      		this.refundState = RefundState.REFUND_START;
+      		try {
+      			refundService.refund(paymentId);
+      			this.refundStatus = RefundState.REFUND_COMPLETED;
+      		} catch(){
+      			throw e;
+      		}
+      	}
+      }
+      ~~~
+
+    - Order는 주문을 표현하는 도메인 객체인데 결제 도메인의 환불 관련 로직이 뒤섞이게 된다.
+    - 이것은 환불 기능이 바뀌면 Order도 영향을 받게 된다는 것을 의미한다.
+
+  - 도메인 객체에 서비스를 전달할 시 또다른 문제는 기능을 추가할 때 발생한다.
+
+    - 만약 주문 취소에 대한 알람을 보내야 하는 기능을 구현해야 한다면, 환불 도메인 서비스와 동일하게 알람 통지 서비스를 받도록 구현하게 되어 로직이 섞이는 문제가 발생한다. 
+    - 그렇게 되면 트랜잭션 처리가 더 복잡해지고, 영향을 받는 외부서비스가 두개로 증가한다.
+
+- 위와 같은 문제가 발생하는 이유는 주문 바운디드 컨텍스트와 결제 바운디드 컨텍스트간의 강결합`high coupling` 때문이다. 주문이 결제와 강하게 결합되어 있어서 주문 바운디드 컨텍스트가 결제 바운디드 컨텍스트에 영향을 받게 되는 것이다.
+
+- 이런 결함을 없애기 위해 **이벤트**를 사용하면 된다.
+
+  - 특히 비동기 이벤트를 사용하면 두 시스템 간의 결합을 크게 낮출 수 있다.
+
+#### 10.2 이벤트 개요
+
+- 이벤트`Event`라는 용어는 '과거에 벌어진 어떤 것'을 의미한다. 
+  - 예를 들면 '암호를 변경했음' 이벤트, '주문을 취소했음' 이벤트
+- 이벤트가 발생한다는 것은 상태가 변경됐다는 것을 의미한다.
+  - 이벤트가 발생하는 것에서 끝나지 않는다. 이벤트가 발생하면 그 이벤트에 반응하여 원하는 동작을 수행하는 기능을 구현한다.
+  - 예를 들면 '주문을 취소할 때 이메일을 보낸다' 라는 요구사항이 있으면, '주문을 취소할 때' 주문이 취소상태로 바뀌는 것을 의미하므로, '주문 취소됨 이벤트'를 활용해서 구현할 수 있다.
+
+#### 10.2.1 이벤트 관련 구성요소
+
+- 도메인 모델이 이벤트를 도입하려면 4개의 구성요소인 `이벤트`, `이벤트 생성 주체`, `이벤트 디스패처(퍼블리셔)`, `이벤트 핸들러(구독자)`를 구현해야 한다.
+
+<img src="./img/event1.jpg" alt="event1" style="zoom:33%;" />
+
+- 도메인 모델에서 이벤트 생성 주체는 엔티티, 밸류, 도메인 서비스와 같은 도메인 객체이다. 이들 도메인 객체는 도메인 로직을 실행해서 상태가 바뀌면 관련 이벤트를 발생시킨다.
+- 이벤트 핸들러 `Event Handler`
+  - 이벤트 핸들러는 이벤트 생성 주체가 발생한 이벤트에 반응한다. 
+  - 이벤트 핸들러는 생성 주체가 발생한 이벤트를 전달받아 이벤트에 담긴 데이터를 이용해서 우너하는 기능을 실행한다.
+    - 예를 들어 '주문 취소 됨' 이벤트를 받는 이벤트 핸들러는 해당 주문의 주문자에게 SMS로 취소 사실을 통지하는 기능을 구현할 수 있다.
+- 이벤트 디스패처 `Event Dispatcher` 또는 `Event Publisher`
+  - 이벤트 디스패처는 이벤트 생성 주체와 핸들러를 연결해준다.
+  - 이벤트 생성 주체는 이벤트를 생성해서, 디스패처에 이벤트를 전달한다.
+  - 이벤트를 전달받은 디스패처는 해당 이벤트를 처리할 수 있는 핸들러에 이벤트를 전파한다.
+  - 이벤트 디스패처의 구현방식에 따라 이벤트 생성과 처리를 동기나 비동기로 실행하게 된다.
+
+#### 10.2.2 이벤트의 구성
+
+- 이벤트는 발생한 이벤트에 대한 정보를 담는다. 이벤트는 해당 정보를 포함한다.
+
+  - 이벤트 종류: 클래스 이름으로 이벤트 종류를 표현
+  - 이벤트 발생 시간
+  - 추가 데이터: 주문번호, 신규 배송지 정보 등 이벤트와 관련된 정보
+
+- 배송지를 변경할 때 발생하는 이벤트를 예를 들자면
+
+  - 배송지 변경을 위한 이벤트
+
+    ~~~java
+    @RequiredArgsConstructor
+    @Getter
+    public class ShippingInfoChangedEvent {
+    
+      private final Long orderId;
+      private final Instant timeStamp;
+      private final ShippingInfo shippingInfo;
+      
+    }
+    ~~~
+
+  - 클래스의 이름을 보면 'Changed'라는 과거 시제를 사용했다. 이벤트는 현재 기준으로 과거(바로 직전이라도)에 벌어진 것을 표현하기 때문에 이벤트 이름에는 과거 시제를 사용한다.
+
+  - 이 이벤트를 발생하는 주체는 Order 애그리거트이다. Order 애그리거트의 배송지 변경 기능을 구현한 메서드는 다음 코드처럼 배소지 정보를 변경한 뒤에 ShippingInfoChangedEvent를 발생시킬 것이다.
+
+    > 저는 책과 다르게 applicationEventPublisher를 사용할 것이기도 하고, 도메인 엔티티에서, applicationEventPublisher가 섞이는걸 원치 않아서 이벤트를 add까지만 하고 도메인 서비스 또는 응용 서비스에서 발생시킬 생각입니다.
+    >
+    > 라스트마일을 예로 들고 하긴 했는데, 혹시 제가 잘못 구현한 것이면 알려주시면 감사합니다.
+
+    ~~~java
+    public void changeShippingInfo(ShippingInfo shippingInfo) {
+        verifyNotYetShipped();
+        this.shippingInfo = shippingInfo;
+        orderEvents.add(new ShippingInfoChangedEvent(id, Instant.now(), this.shippingInfo));
+      }
+    ~~~
+
+  - ShippingInfoChangedEvent를 처리하는 핸들러는 디스패처로부터 이벤트를 전달받아 필요한 작업을 수행한다.
