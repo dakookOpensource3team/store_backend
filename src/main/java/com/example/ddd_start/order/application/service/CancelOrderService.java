@@ -1,5 +1,6 @@
 package com.example.ddd_start.order.application.service;
 
+import com.example.ddd_start.common.application.event.Events;
 import com.example.ddd_start.common.domain.exception.NoOrderException;
 import com.example.ddd_start.order.domain.Order;
 import com.example.ddd_start.order.domain.OrderRepository;
@@ -20,13 +21,7 @@ public class CancelOrderService {
     Order order = orderRepository.findById(orderId).orElseThrow(NoOrderException::new);
     order.cancel();
 
-    order.startRefund();
-    try {
-      refundService.refund(order.getPaymentId());
-      order.completeRefund();
-    } catch (Exception e) {
-      log.error(e.getMessage());
-    }
+    Events.raiseEvents(order.getOrderEvents());
   }
 
 }

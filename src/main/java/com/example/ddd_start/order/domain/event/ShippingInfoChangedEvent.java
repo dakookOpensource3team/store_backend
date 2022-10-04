@@ -7,7 +7,7 @@ import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
 @Getter
-public class ShippingInfoChangedEvent implements OrderEvent {
+public class ShippingInfoChangedEvent extends OrderEvent {
 
   private final Long orderId;
   private final Instant timeStamp;

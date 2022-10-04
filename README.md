@@ -3640,3 +3640,420 @@ public class CancelOrderService {
     ~~~
 
   - ShippingInfoChangedEvent를 처리하는 핸들러는 디스패처로부터 이벤트를 전달받아 필요한 작업을 수행한다.
+  
+    ~~~java
+    @Slf4j
+    public class ShippingInfoChangedHandler {
+    
+      @EventListener(ShippingInfoChangedEvent.class)
+      public void loggingShippingInfoChanged(ShippingInfoChangedEvent event) {
+        log.info("배송정보가 변경되었습니다.");
+        //책에서는 외부 물류 서비스에 전송하는 핸들러를 구현하였다.
+        shippingInfoSynchronizer.sync(
+          event.getOrderNumber(),
+          event.getNewShippingInfo()
+        );
+      }
+    }
+    ~~~
+  
+  - 이벤트는 이벤트 핸들러가 작업을 수행하는 데 필요한 데이터를 담아야한다. 이 데이터가 부족하면 핸들러는 필요한 데이터를 읽기 위해 관련 API를 호출하거나 DB에서 직접 데이터를 읽어와야 한다.
+
+
+
+#### 10.2.3 이벤트 용도
+
+- 이벤트는 크에 두가지 용도로 쓰인다.
+
+  - 트리거
+
+    - 도메인의 상태가 바뀔 때 다른 후처리가 필요하면 후처리를 실행하기 위한 트리거로 이벤트를 사용할 수 있다.
+
+    <img src="./img/event2.jpg" alt="event2" style="zoom:33%;" />
+
+  - 서로 다른 시스템 간의 동기화
+    - 배송지를 변경하면 외부 배송서비스에 바꾸니 배송지 정보를 전송해야 한다. 주문 도메인은 배송지 변경 이벤트를 발생시키고 이벤트 핸들러는 외부 배송 서비스와 배송지 정보를 동기화할 수 있다.
+
+#### 10.2.4 이벤트 장점
+
+- 이벤트를 사용하면 서로 다른 도메인 로직이 섞이는 것을 방지할 수 있다.
+
+  - 주문 취소를 예를 들어, 이벤트를 사용하지 않을 때, 주문 취소 로직 안에 환불 로직도 함께 포함되어 있었다. 허나 이벤트를 사용하게 되면 주문 취소 안의 환불로직을 이벤트를 발행해 이벤트 리스너에서 따로 처리할 수 있어, 서로 다른 도메인 로직이 섞이는 것을 방지할 수 있다.
+
+    <img src="./img/event3.jpg" alt="event3" style="zoom:33%;" />
+
+- 이벤트 핸들러를 사용하면 기능 확장도 용이하다.
+
+  - 구매 취소 시 환불과 함께 이메일로 취소 내용을 보내고 싶다면, 이메일 발송을 처리하는 핸들러를 구현하면 된다. 기능을 확장해도 구현 취소 로직은 수정할 필요가 없다.
+
+    <img src="./img/event4.jpg" alt="event3" style="zoom:33%;" />
+
+
+
+#### 10.3 이벤트, 핸들러, 디스패처 구현
+
+- 이벤트와 관련된 코드는 다음과 같다.
+  - 이벤트 클래스: 이벤트를 표현한다.
+  - 디스패처: 스프링이 제공하는 ApplicationEventPublisher를 이용한다.
+  - Events: 이벤트를 발행한다. 이벤트 발행을 위해 ApplicationEventPublisher를 사용한다.
+  - 이벤트 핸들러: 이벤트를 수신해서 처리한다. 스프링이 제공하는 기능을 사용한다.
+
+
+
+#### 10.3.1 이벤트 클래스
+
+- 이벤트 자체를 위한 상위 타입은 존재하지 않는다. 원하는 클래스를 이벤트로 사용하면 된다.
+
+- 이벤트는 과거에 벌어진 상태 변화나 사건을 의미하므로 이벤트 클래스의 이름을 결정할 때에는 과거 시제를 사용해야 한다는 점만 유의하면 된다.
+
+- 이벤트 클래스는 이벤트를 처리하는데 필요한 최소한의 데이터를 포함해야 한다.
+
+- 모든 이벤트가 공통으로 갖는 프로퍼티가 존재한다면 관련 상위클래스를 만들 수 있으며, 모든 이벤트 공통 프로퍼티르 갖게 하려면 상위클래스를 각 이벤트 클래스가 상속받도록 하면 된다.
+
+  ~~~java
+  @Getter
+  public abstract class OrderEvent {
+  
+    private Instant timeStamp;
+    
+    public OrderEvent() {
+      this.timeStamp = Instant.now();
+    }
+  }
+  ~~~
+
+
+
+#### 10.3.2 Events 클래스와 ApplicationEventPublisher
+
+- 이벤트 발생과 출판을 위해 스프링이 제공하는 ApplicationEventPublisher를 사용한다.
+
+- Events라는 클래스를 생성해서, 이벤트를 발생시키도록 할 수 있다.
+
+  ~~~java
+  public class Events {
+  
+    private static ApplicationEventPublisher eventPublisher;
+  
+    public static void setEventPublisher(ApplicationEventPublisher publisher) {
+      Events.eventPublisher = publisher;
+    }
+  
+    public static void raise(Object event) {
+      if (eventPublisher != null) {
+        eventPublisher.publishEvent(event);
+      }
+    }
+  }
+  ~~~
+
+- Events 클래스는 Configuration에서 Bean으로 등록해준다.
+
+  ~~~java
+  @Configuration
+  public class EventsConfiguration {
+  
+    @Autowired
+    private ApplicationContext applicationContext;
+  
+    @Bean
+    public InitializingBean eventInitializer() {
+      return () -> Events.setEventPublisher(applicationContext);
+    }
+  }
+  ~~~
+
+  - eventInitializer()메서드는 InitilizingBean타입 객체를 빈으로 설정한다. 이 타입은 스프링 빈 객체를 초기화할 때 사용하는 인터페이스이다.
+
+
+
+#### 10.3.3 이벤트 발생과 이벤트 핸들러
+
+- 이벤트를 발생시킬 코드는 Events.raise() 메서드를 사용한다.
+
+  ~~~java
+    public void cancel() {
+      verifyNotYetShipped();
+      this.orderState = CANCEL;
+      orderEvents.add(new OrderCanceledEvent(orderNumber)); //도메인 로직에서 오더를 발행하는 것은 무리라 판단.
+    }
+  // 도메인 에서는 오더 이벤트 생성까지만 담당함
+  
+  public class CancelOrderService {
+  
+    private RefundService refundService;
+    private OrderRepository orderRepository;
+  
+    @Transactional
+    public void cancel(Long orderId) {
+      Order order = orderRepository.findById(orderId).orElseThrow(NoOrderException::new);
+      order.cancel();
+      
+      Events.raiseEvents(order.getOrderEvents());
+    }
+  }
+  // 응용서비스에서 이벤트 발행
+  ~~~
+
+- 이벤트를 처리할 핸들러는 스프링이 제공하는 @EventListener 애너테이션을 사용해서 구현한다.
+
+  ~~~java
+  @Component
+  @RequiredArgsConstructor
+  public class OrderCanceledEventHandler {
+  
+    private final RefundService refundService;
+  
+    @EventListener(OrderCanceledEvent.class)
+    public void handle(OrderCanceledEvent event) {
+      refundService.refund(event.getPaymentId());
+    }
+  }
+  ~~~
+
+
+
+#### 10.3.4 흐름 정리
+
+- 책에서는 이벤트 처리흐름을 아래과 같이 정리했다.
+
+  <img src="./img/event5.jpg" alt="event5" style="zoom:33%;" />
+
+- 코드 흐름을 보면 응용 서비스와 동일한 트랜잭션 범위에서 이벤트 핸들러를 실행하고 있다. 즉, 도메인 상태 변경과 이벤트 핸들러는 같은 트랜잭션 범위에서 실행된다.
+
+
+
+#### 10.4 동기 이벤트 처리 문제
+
+- 이벤트를 사용해서 강결합 문제는 해소 했지만, 외부 서비스에 영향을 받는 문제가 남아 있다.
+
+  ~~~java
+  //1. 응용 서비스 코드
+   @Transactional
+   public void cancel(Long orderId) {
+      Order order = orderRepository.findById(orderId).orElseThrow(NoOrderException::new);
+      order.cancel();
+  
+      Events.raiseEvents(order.getOrderEvents());
+    }
+  
+  //2. 이벤트를 처리하는 코드
+  	@Transactional(value = TxType.REQUIRES_NEW)
+  	@EventListener(OrderCanceledEvent.class)
+    public void handle(OrderCanceledEvent event) {
+      Order order = orderRepository.findById(event.getOrderId()).orElseThrow(NoOrderException::new);
+  		
+      //refund()가 느려지거나 익셉션이 발생한다면?
+      refundService.refund(event.getPaymentId());
+      order.completeRefund();
+    }
+  ~~~
+
+  - 해당 코드에서 refund()는 외부 환불 서비스와 연동한다고 했을 때, 만약 외부 환불 기능이 갑자기 느려지면 cancel() 메서드도 함께 느려진다. 이것은 외부 서비스의 성능 저하가 바로 내시스템의 성능 저하로 연결된다는 것을 의미한다.
+  - 성능 저하뿐만 아니라, 트랜잭션도 문제가 된다.
+
+- 외부 시스템과의 연동을 동기로 처리할 때 발생하는 성능과 트랜잭션 범위 문제를 해소하는 방법은
+
+  - 이벤트를 비동기로 처리하거나, 이벤트와 트랜잭션을 연계하는 것이다.
+
+
+
+#### 10.5 비동기 이벤트 처리
+
+- 예) 비동기 이벤트 처리가 사용 되는 경우
+  - 회원 가입 신청 후 검증 이메일
+  - 주문 취소 후 환불 처리
+- 보통 'A하면 이어서 B하라'는 요구사항은 실제로 'A하면 최대언제까지 B하라'인 경우가 많다. 즉 일정 시간안에만 후속처리를 진행하면 되는 경우가 적지 않다.
+- 게다가 'A 하면 이어서 B하라'에서 요구사항 B를 하는데 실패하면 일정 간격으로 재시도를 하거나 수동 처리를 해도 상관없는 경우가 있다.
+- 'A하면 이어서 B하라'를 다른 관점에서 보면 'A하면'을 이벤트로 볼 수 있고, 'B하라'는 이벤트 핸들러에서 처리하는 기능으로 볼 수 있다.
+  - 여기서 'A하면 최대 언제까지 B하라'를 보면, 비동기 방식으로 처리하라는 것으로 볼 수 있다. A에서 이벤트를 발행하면 별도의 쓰레드에서 이벤트 핸들러가 B를 실행하면 된다.
+- 이벤트를 비동기로 구현할 수 있는 방법은 다양하다. 책에서는 다음 4가지를 설명한다.
+  - 로컬 핸들러를 비동기로 실행하기
+  - 메시지 큐를 사용하기
+  - 이벤트 저장소와 이벤트 포워더 사용하기
+  - 이벤트 저장소와 이벤트 제공 API 사용하기
+
+
+
+#### 10.5.1 로컬 핸들러 비동기 실행
+
+- 이벤트 핸들러를 비동기로 실행하는 방법은 이벤트 핸들러를 별도 스레드로 실행하는 것이다.
+
+  - 스프링이 제공하는 @Async 에너테이션을 사용하면 솝쉽게 비동기로 이벤트 핸들러를 실행할 수 있다.
+    - @EnabelAsync 애너테이션을 사용해서 비동기 기능을 활성화 한다.
+    - 이벤트 핸들러 메서드에 @Async 애너테이션을 붙인다.
+
+- @EnableAsync 애너테이션은 스프링의 비동기 실행 기능을 활성화한다. 스프링 설정 클래스에 @EnableAsync 애너테이션을 붙이면 된다.
+
+  ~~~java
+  @EnableAsync
+  @SpringBootApplication
+  public class DddStartApplication {
+  
+  	public static void main(String[] args) {
+  		SpringApplication.run(DddStartApplication.class, args);
+  	}
+  
+  }
+  ~~~
+
+- 비동기로 실행할 이벤트 핸들러 메서드에 @Async 애터네이션만 붙이면 된다.
+
+  ```java
+  @Async
+  @Transactional(value = TxType.REQUIRES_NEW)
+  @EventListener(OrderCanceledEvent.class)
+  public void handle(OrderCanceledEvent event) {
+    Order order = orderRepository.findById(event.getOrderId()).orElseThrow(NoOrderException::new);
+  
+    refundService.refund(event.getPaymentId());
+    order.completeRefund();
+  }
+  ```
+
+- 스프링은 OrderCanceledEvent가 발생하면 handle() 메서드를 별도 스레드를 이용해서 비동기로 실행한다.
+
+
+
+#### 10.5.2 메시징 시스템을 이용한 비동기 구현
+
+- 비동기로 이벤트를 처리해야 할 때 사용하는 또 다른 방법은 카프카나 래빗MQ와 같은 메시징 시스템을 사용하는 것이다. 
+- 이벤트가 발생하면 이벤트 디스패처는 이벤트를 메시지 큐에 보낸다. 메시지 큐는 이벤트를 메시지 리스너에 전달하고, 메시지 리스너는 알맞은 이벤트 핸들러를 이용해서 이벤트를 처리한다.
+  - 이때 이벤트를 메시지큐에 저장하는 과정과 메시지 큐에서 이벤트를 읽어와 처리하는 과정은 별도 스레드나 프로세스로 처리된다.
+
+<img src="./img/event6.jpg" alt="event6" style="zoom:33%;" />
+
+- 필요하다면 이벤트를 발생시키는 도메인 기능과 메시지 큐에 이벤트를 저장하는 절차를 한 트랜잭션으로 묶어야 한다.
+  - 도메인 기능을 실행한 결과를 DB에 반영하고 이 과정에서 발생한 이벤트를 메시지 큐에 저장하는 것을 같은 트랜잭션 범위에서 실행하려면 글로벌 트랜잭션이 필요하다.
+- 글로버 트랜잭션을 사용하면 안전하게 이벤트를 메시지 큐에 전달할 수 있는 장점이 있지만 반대로 글로벌 트랜잭션으로 인해 전체 성능이 떨어지는 단점도 있다. 
+  - 글로벌 트랜잭션을 지원하지 않는 메시징 시스템도 있다.
+- 메시지 큐를 사용하면 보통 이벤트를 발생시키는 주체와 이벤트 핸들러가 별도 프로세스에서 동작한다. 이것은 이벤트 발생 JVM과 이벤트 처리 JVM이 다르다는 것을 의미한다. 
+  - 물론 한 JVM에서 메시지 큐를 이용하여 이벤트르 주고받을 수 있지만, 비동기 처리를 위해 메시지 큐를 사용하는 것은 시스템을 복잡하게 한다.
+- 대표적인 메시징 큐
+  - 래빗MQ: 글로벌 트랜잭션 지원, 클러스터와 고가용성 지원 -> 안정적인 메시징 전달
+  - 카프카: 글로벌 트랜잭션 지원 안함 but 다른 메시징 시스템에 비해 높은 성능을 보여줌
+
+
+
+#### 10.5.3 이벤트 저장소를 이용한 비동기 처리
+
+- 이벤트를 비동기로 처리하는 또 다른 방법은 이벤트를 일단 DB에 저장한 뒤에 별도 프로그램을 이용해서 이벤트 핸들러에 전달하는 것이다.
+
+  > 이벤트를 DB에 저장하기에 안정성은 높여줄것 같지만 굳이 다른 프로세스에서 처리를 하는데 메시지큐를 사용하지 DB를 이용해서는 처리를 안할 것 같다... 굳이 꼽자면 성능과 고가용성?
+
+  ![event7](./img/event7.jpg)
+
+- 이벤트가 발생하면 핸들러는 스토리지에 이벤트를 저장한다. 포워더는 주기적으로 이벤트 저장소에서 이벤트를 가져와 이벤트 핸들러를 실행한다. 포워더는 별도 스레드를 이용하기 때문에 이벤트 발행과 처리가 비동기로 처리된다.
+- 이 방식은 도메인의 상태와 이벤트 저장소로 동일한 DB를 사용한다. 즉, 도메인의 상태 변화와 이벤트 저장이 로컬 트랜잭션으로 처리된다. 이벤트를 물리적 저장소에 보관하기 때문에 핸들러가 이벤트 처리에 실패하는 경우 포워더는 다시 이벤트 저장소에서 이벤트를 읽어와 핸들러를 실행하면 된다.
+
+
+
+- 이벤트 저장소를 이용한 두번째 방법은 이벤트를 외부에 제공하는 API를 사용하는 것이다.
+
+  <img src="./img/event8.jpg" alt="event8" style="zoom:33%;" />
+
+- API방식과 포워더 방식의 차이점은 이벤트를 전달하는 방식에 있다. 
+
+- 포워더 방식이 포워더를 이용해서 이벤트를 외부에 전달한다면, API 방식은 외부 핸들러가 API 서버를 통해 이벤트 목록을 가져간다. 
+
+- 포워더 방식은 이벤트를 어디까지 처리했는지 추적하는 역할이 포워더에 있다면, API 방식에서는 이벤트 목록을 요구하는 외부 핸들러가 자신이 어디까지 이벤트를 처리했는지 기억해야 한다.
+
+
+
+**이벤트 저장소 구현**
+
+- 포워더 방식과 API 방식 모두 이벤트 저장소를 사용하므로 이벤트를 저장할 저장소가 필요하다. 이벤트 저장소를 구현한 코드 구조는 아래의 그림과 같다.
+
+  <img src="./img/event9.jpg" alt="event9" style="zoom:33%;" />
+
+- EventEntry: 이벤트 저장소에 보관할 데이터이다. EventEntry는 이벤트르 식별하기 위한 id, 이벤트 타입인 type, 직렬화한 데이터 형식인 contentType, 이벤트 데이터 자체인 payload, 이벤트 시간인 timestamp를 갖는다. 
+
+  > EventEntry를 나라면 상속 구조로 구현하여 DTYPE을 통해 이벤트를 구분하면 좋을 것 같다.
+
+- EventStore: 이벤트를 저장하고 조회하는 인터페이스를 제공한다.
+
+- JdbcEventStore: JDBC를 이용한 EventStore 구현 클래스이다.
+
+- EventApi: Rest API를 이용해서 이벤트 목록을 제공하는 컨트롤러이다.
+
+ 코드는 생략하겠다. 
+
+
+
+#### 10.6 이벤트 적용 시 추가 고려사항
+
+- 이벤트를 구현할 때 추가로 고려할 점이 있다.
+
+  1. 이벤트 저장소 방식으로 구현할 때 이벤트 소스를 EventEntry에 추가할지 여부이다. 앞에서 EventEntry는 이벤트 발생 주체에 대한 정보를 갖지 않는다.
+     - 따라서 'Order'가 발생시킨 이벤트만 조회하기 처럼 특정 주체가 발생시킨 이벤트만 조회하는 기능을 구현할 수 없다. 이 기능을 구현하려면 이벤트에 발생 주체 정보를 추가해야 한다.
+
+  2. 포워더에서 전송 실패를 얼마나 허용할 것인가 이다.
+     - 포워더는 이벤트 전송에 실패하면 실패한 이벤트부터 다시 읽어와 전송을 시도한다. 그런데 특정 이벤트에서 계속 전송에 실패하면 그 이벤트 때문에 나머지 이벤트를 전송할 수 없게 된다. 따라서 포워더를 구현할 때는 실패한 이벤트의 재전송 횟수 제한을 두어야 한다.
+
+  3. 이벤트 손실에 대한 것이다. 
+
+     - 이벤트 저장소를 사용하는 방식은 이벤트 발생과 이벤트 저장을 한 트랜잭션으로 처리하기 때문에 트랜잭션에 성공하면 이벤트가 저장소에 보관되는 것을 보장할 수 있다.
+
+     - 로컬 핸들러를 이용해서 이벤트를 비동기로 처리할 경우 이벤트 처리에 실패하면 이벤트를 유실하게 된다.
+
+  4. 이벤트 순서에 대한 것이다.
+
+     - 이벤트 발생 순서대로 외부 시스템에 전달해야 할 경우, 이벤트 저상소를 사용하는 것이 좋다. 이벤트 저장소는 이벤트를 발생 순서대로 저장하고, 그 순서대로 이벤트 목록을 제공해준다.
+
+     - 반면에 메시징 시스템은 사용기술에 따라 이벤트 발생 순서와 메시지 전달 순서가 다를 수도 있다.
+
+       > 카프카는 순서대로 저장되는게 맞지 않나?? -> 나중에 공부해봐야겠다.
+
+  5. 이벤트 재처리에 대한 것이다.
+     - 동일한 이벤트를 다시 처리해야 할 때 이벤트를 어떻게 할지 결정해야 한다.
+     - 가장 쉬운 방법은 마지막으로 처리한 이벤트의 순번을 기억해 두었다가 이미 처리한 순번의 이벤트가 도착하면 해당 이벤트를 처리하지 않고 무시하는 것이다.
+     - 이벤트를 멱등으로 처리하는 방법이 있다.
+
+
+
+#### 10.6.1 이벤트 처리와 DB 트랜잭션 고려
+
+- 이벤트를 처리할 때는 DB트랜잭션을 함께 고려해야 한다.
+
+- 주문 취소 이벤트를 예를 들었을때 이벤트 발생과 처리를 모두 동기로 처리하면 실행 흐름은 아래의 그림과 같을 것이다.
+
+  <img src="./img/event10.jpg" alt="event10" style="zoom:33%;" />
+
+- 위와 같은 상황에서 고민할 상황이 있다. 12번까지 다 성공하고 13번 과정에서 DB를 업데이트 하는데 실패하는 상황이다. 다 성공하고 13번 과정에서 실패하면 결제는 취소됬는데 DB에는 주문이 취소되지 않은 상태로 남게 된다.
+
+- 이벤트를 비동기로 처리할 때도 DB 트랜잭션을 고려해야 한다.
+
+  <img src="./img/event11.jpg" alt="event10" style="zoom:33%;" />
+
+- 위 그림은 주문 취소 이벤트를 비동기로 처리할 때의 실행 흐름이다. 
+
+- DB업데이트와 트랜잭션을 다 커밋한 뒤에 환불 로직인 11번에서 13번 과정을 실행했을 때, 만약 12번 과정에서 외부 API 호출에 실패하면 DB에는 주문이 취소된 상태로 데이터가 바뀌었는데, 결제는 취소되지 않은 상태로 남게 된다.
+
+  - 이벤트 처리를 동기로 하든 비동기로 하든 이벤트 처리 실패와 트랜잭션 실패를 함께 고려해야 한다.
+
+- 트랜잭션 실패와 이벤트 처리 실패를 모두 고려하면 복잡해 지므로 경우의 수를 줄이면 도움이된다.
+
+- 스프링은 @TransactionalEventListener 애너테이션을 지원한다. 이 애너테이션은 스프링 트랜잭션 상태에 따라 이벤트 핸들러를 실행할 수 있게 한다.
+
+  ~~~java
+  	@Async
+    @Transactional(value = TxType.REQUIRES_NEW)
+    @TransactionalEventListener(
+        classes = OrderCanceledEvent.class,
+        phase = TransactionPhase.AFTER_COMMIT)
+    public void handle(OrderCanceledEvent event) {
+      Order order = orderRepository.findById(event.getOrderId()).orElseThrow(NoOrderException::new);
+  
+      refundService.refund(event.getPaymentId());
+      order.completeRefund();
+    }
+  ~~~
+
+  - 위 코드에서 phase 속성 값을 TransactionPhase.AFTER_COMMIT 으로 지정했다.
+  - 이값을 사용하면 스프링은 트랜잭션 커밋에 성공한 뒤에 핸들러 메서드를 실행한다. 
+  - 이벤트를 발행하는 서비스에서 중간에 에러가 발생해서 트랜잭션이 롤백 되면 해당 이벤트 핸들러 메서드는 실행하지 않는다.
+  - 이 기능을 사용하면 이벤트 핸들러를 실행했는데 트랜잭션이 롤백 되는 상황은 발생하지 않는다.
+
+- 이벤트 저장소로 DB를 사용해도 동일한 효과를 볼 수 있다.
+
+- 트랜잭션이 성공할 때만 이벤트 핸들러를 실행하게 됨녀 트랜잭션 실패에 대한 경우의 수가 줄어서 이벤트 처리 실패만 고리하면 된다. 이벤트 특성에 따라 재처리 방식을 결정하면 된다.

@@ -1,5 +1,14 @@
 package com.example.ddd_start.order.domain.event;
 
-public interface OrderEvent {
+import java.time.Instant;
+import lombok.Getter;
 
+@Getter
+public abstract class OrderEvent {
+
+  private Instant timeStamp;
+
+  public OrderEvent() {
+    this.timeStamp = Instant.now();
+  }
 }

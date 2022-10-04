@@ -5,9 +5,11 @@ import static com.example.ddd_start.order.domain.value.OrderState.PAYMENT_WAITIN
 import static com.example.ddd_start.order.domain.value.OrderState.PREPARING;
 import static com.example.ddd_start.order.domain.value.OrderState.SHIPPED;
 
+import com.example.ddd_start.common.application.event.Events;
 import com.example.ddd_start.common.domain.Money;
 import com.example.ddd_start.coupon.domain.Coupon;
 import com.example.ddd_start.member.domain.MemberGrade;
+import com.example.ddd_start.order.domain.event.OrderCanceledEvent;
 import com.example.ddd_start.order.domain.event.OrderEvent;
 import com.example.ddd_start.order.domain.event.ShippingInfoChangedEvent;
 import com.example.ddd_start.order.domain.service.DiscountCalculationService;
@@ -152,6 +154,8 @@ public class Order {
   public void cancel() {
     verifyNotYetShipped();
     this.orderState = CANCEL;
+    startRefund();
+    orderEvents.add(new OrderCanceledEvent(id, paymentId));
   }
 
   private void verifyNotYetShipped() {
