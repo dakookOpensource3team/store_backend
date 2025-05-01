@@ -22,7 +22,8 @@ public class RegisterProductService {
     Store store = storeRepository.findById(req.getStoreId())
         .orElseThrow(NoSuchElementException::new);
     Product product = store.createProduct(
-        new ProductInfo(req.getName(), req.getPrice(), req.getCategoryId()));
+        new ProductInfo(req.getTitle(), req.getSlug(), req.getPrice(), req.getDescription(),
+            req.getCategoryId(), req.getImages()));
     productRepository.save(product);
 
     return product.getId();

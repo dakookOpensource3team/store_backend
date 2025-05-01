@@ -15,7 +15,5 @@ public class DeleteProductService {
   public void removeOptions(Long productId, int optIdx) {
     Product product = productRepository.findById(productId)
         .orElseThrow(NoSuchElementException::new);
-
-    product.removeOption(optIdx);
   }
 }

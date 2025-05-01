@@ -2,7 +2,7 @@ package com.example.ddd_start.product.domain;
 
 import com.example.ddd_start.common.domain.Money;
 import com.example.ddd_start.store.domain.Store;
-import java.util.ArrayList;
+import java.time.Instant;
 import java.util.List;
 import javax.persistence.AttributeOverride;
 import javax.persistence.CollectionTable;
@@ -10,13 +10,11 @@ import javax.persistence.Column;
 import javax.persistence.ElementCollection;
 import javax.persistence.Embedded;
 import javax.persistence.Entity;
-import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
-import javax.persistence.OrderColumn;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -28,29 +26,46 @@ public class Product {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
-  private String name;
+  private String title;
+  private String slug;
   @Embedded
-  @AttributeOverride(name = "value", column = @Column(name = "price"))
+  @AttributeOverride(name = "amount", column = @Column(name = "price"))
   private Money price;
+  @Column(columnDefinition = "TEXT")
+  private String description;
   private Long categoryId;
   @ManyToOne
   @JoinColumn(name = "store_id")
   private Store store;
+  @ElementCollection
+  @CollectionTable(name = "product_images", joinColumns = @JoinColumn(name = "product_id"))
+  @Column(name = "image_url")
+  List<String> images;
+  private Instant createdAt;
+  private Instant updatedAt;
 
-  @ElementCollection(fetch = FetchType.LAZY)
-  @CollectionTable(name = "prodcut_option",
-      joinColumns = @JoinColumn(name = "product_id"))
-  @OrderColumn(name = "list_idx")
-  private List<Option> options = new ArrayList<>();
-
-  public Product(String name, Money price, Long categoryId, Store store) {
-    this.name = name;
-    this.price = new Money(price.getAmount());
+  public Product(String title, String slug, Money price, String description, Long categoryId,
+      List<String> images, Instant createdAt, Instant updatedAt) {
+    this.title = title;
+    this.slug = slug;
+    this.price = price;
+    this.description = description;
     this.categoryId = categoryId;
-    this.store = store;
+    this.images = images;
+    this.createdAt = createdAt;
+    this.updatedAt = updatedAt;
   }
 
-  public void removeOption(int optionIdx) {
-    this.options.remove(optionIdx);
+  public Product(String title, String slug, Money price, String description, Long categoryId,
+      List<String> images, Store store) {
+    this.title = title;
+    this.slug = slug;
+    this.price = price;
+    this.description = description;
+    this.categoryId = categoryId;
+    this.images = images;
+    this.createdAt = Instant.now();
+    this.updatedAt = Instant.now();
+    this.store = store;
   }
 }

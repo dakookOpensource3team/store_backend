@@ -1,25 +1,37 @@
 package com.example.ddd_start.product.application.service;
 
+import java.util.List;
 import lombok.Getter;
 
 @Getter
 public class NewProductRequest {
 
   private final Long storeId;
-  private final String name;
+  private final String title;
+  private final String slug;
   private final Integer price;
+  private String description;
   private Long categoryId;
+  private List<String> images;
 
-  public NewProductRequest(Long storeId, String name, Integer price) {
+  public NewProductRequest(Long storeId, String title, String slug, Integer price,
+      String description, List<String> images) {
     this.storeId = storeId;
-    this.name = name;
+    this.title = title;
+    this.slug = slug;
     this.price = price;
+    this.description = description;
+    this.images = images;
   }
 
-  public NewProductRequest(Long storeId, String name, Integer price, Long categoryId) {
+  public NewProductRequest(Long storeId, String title, String slug, Integer price,
+      String description, Long categoryId, List<String> images) {
     this.storeId = storeId;
-    this.name = name;
+    this.title = title;
+    this.slug = slug;
     this.price = price;
+    this.description = description;
     this.categoryId = categoryId;
+    this.images = images;
   }
 }

@@ -8,6 +8,7 @@ import com.example.ddd_start.product.domain.Product;
 import com.example.ddd_start.product.domain.ProductInfo;
 import java.util.HashSet;
 import java.util.Set;
+import javax.persistence.CascadeType;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
 import javax.persistence.Enumerated;
@@ -26,7 +27,7 @@ public class Store {
   @GeneratedValue
   private Long id;
   private String storeName;
-  @OneToMany(mappedBy = "store")
+  @OneToMany(mappedBy = "store", cascade = CascadeType.ALL)
   private Set<Product> products = new HashSet<>();
 
   @Enumerated(value = EnumType.STRING)
@@ -41,8 +42,15 @@ public class Store {
     if (isStoreBlocked()) {
       throw new StoreBlockedException();
     }
-    Product product = new Product(productInfo.getName(), new Money(productInfo.getPrice()),
-        productInfo.getCategoryId(), this);
+    Product product = new Product(
+        productInfo.getTitle(),
+        productInfo.getSlug(),
+        new Money(productInfo.getPrice()),
+        productInfo.getDescription(),
+        productInfo.getCategoryId(),
+        productInfo.getImages(),
+        this
+    );
     products.add(product);
     return product;
   }
