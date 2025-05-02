@@ -14,6 +14,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
 @Service
@@ -25,6 +26,7 @@ public class FetchProductService {
   private final ProductMapper productMapper;
   private final ApplicationEventPublisher eventPublisher;
 
+  @Transactional
   public void fetchProducts() {
     RestTemplate restTemplate = new RestTemplate();
     HttpHeaders httpHeaders = new HttpHeaders(); //메타 정보(기본 정보)
@@ -43,7 +45,9 @@ public class FetchProductService {
       CategoryDTO category = productDTO.getCategory();
       eventPublisher.publishEvent(
           new FetchCategoryEvent(category));
-      productRepository.save(productMapper.toEntity(productDTO));
+      if(!productRepository.existsByTitle(productDTO.getTitle())) {
+        productRepository.save(productMapper.toEntity(productDTO));
+      }
     });
   }
 
