@@ -39,7 +39,7 @@ public class Product {
   private Store store;
   @ElementCollection
   @CollectionTable(name = "product_images", joinColumns = @JoinColumn(name = "product_id"))
-  @Column(name = "image_url")
+  @Column(name = "image_url", columnDefinition = "TEXT")
   List<String> images;
   private Instant createdAt;
   private Instant updatedAt;
