@@ -7,6 +7,7 @@ import com.example.ddd_start.product.domain.ProductRepository;
 import com.example.ddd_start.product.infrastructure.ProductMapper;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
