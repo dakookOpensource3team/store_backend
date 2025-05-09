@@ -11,6 +11,7 @@ public class joinCommand {
 
   String email;
   String password;
-  String name;
+  String username;
   AddressCommand addressReq;
+  String role;
 }
