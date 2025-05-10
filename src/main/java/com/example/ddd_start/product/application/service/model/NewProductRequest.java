@@ -1,4 +1,4 @@
-package com.example.ddd_start.product.application.service;
+package com.example.ddd_start.product.application.service.model;
 
 import java.util.List;
 import lombok.Getter;

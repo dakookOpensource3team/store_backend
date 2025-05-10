@@ -1,17 +1,12 @@
 package com.example.ddd_start.product.presentation;
 
-import com.example.ddd_start.product.application.service.DeleteProductService;
-import com.example.ddd_start.product.application.service.FetchProductService;
-import com.example.ddd_start.product.application.service.PrintProductService;
-import com.example.ddd_start.product.application.service.RegisterProductService;
+import com.example.ddd_start.product.application.service.*;
 import com.example.ddd_start.product.application.service.model.ProductDTO;
-import com.example.ddd_start.product.presentation.model.ProductResponse;
+import com.example.ddd_start.product.presentation.model.SaveLastlyProductRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -23,6 +18,7 @@ public class ProductController {
     private final DeleteProductService deleteProductService;
     private final RegisterProductService registerProductService;
     private final FetchProductService fetchProductService;
+    private final LastlyRetrieveProductService lastlyRetrieveProductService;
 
     @GetMapping("/products")
     public ResponseEntity printAllProducts() {
@@ -37,8 +33,25 @@ public class ProductController {
     public ResponseEntity printProductById(@PathVariable Long productId) {
         ProductDTO product = printProductService.printProductById(productId);
         return new ResponseEntity(
-            product,
-            HttpStatus.ACCEPTED
+                product,
+                HttpStatus.ACCEPTED
+        );
+    }
+
+    @PostMapping("/products/lastly")
+    public ResponseEntity saveLastlyRetrievedProduct(@RequestBody SaveLastlyProductRequest req) {
+        lastlyRetrieveProductService.saveLastlyRetrieveProduct(req.memberId(), req.productId());
+        return new ResponseEntity(
+                HttpStatus.ACCEPTED
+        );
+    }
+
+    @GetMapping("/products/lastly")
+    public ResponseEntity printLastlyRetrievedProduct(@RequestParam Long memberId) {
+        List<ProductDTO> productDTOS = lastlyRetrieveProductService.printLastlyRetrieveProduct(memberId);
+        return new ResponseEntity(
+                productDTOS,
+                HttpStatus.ACCEPTED
         );
     }
 }

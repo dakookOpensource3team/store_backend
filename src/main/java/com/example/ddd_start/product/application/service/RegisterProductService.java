@@ -1,5 +1,6 @@
 package com.example.ddd_start.product.application.service;
 
+import com.example.ddd_start.product.application.service.model.NewProductRequest;
 import com.example.ddd_start.product.domain.Product;
 import com.example.ddd_start.product.domain.ProductInfo;
 import com.example.ddd_start.product.domain.ProductRepository;
