@@ -1,13 +1,12 @@
 package com.example.ddd_start.product.application.service;
 
-import com.example.ddd_start.category.domain.event.FetchCategoryEvent;
 import com.example.ddd_start.category.application.service.model.CategoryDTO;
+import com.example.ddd_start.category.domain.event.FetchCategoryEvent;
 import com.example.ddd_start.product.application.service.model.ProductDTO;
 import com.example.ddd_start.product.domain.ProductRepository;
 import com.example.ddd_start.product.infrastructure.ProductMapper;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
@@ -46,7 +45,7 @@ public class FetchProductService {
       CategoryDTO category = productDTO.getCategory();
       eventPublisher.publishEvent(
           new FetchCategoryEvent(category));
-      if(!productRepository.existsByTitle(productDTO.getTitle())) {
+      if (!productRepository.existsByTitle(productDTO.getTitle())) {
         productRepository.save(productMapper.toEntity(productDTO));
       }
     });

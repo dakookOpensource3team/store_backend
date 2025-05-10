@@ -2,13 +2,11 @@ package com.example.ddd_start.product.presentation;
 
 import com.example.ddd_start.product.application.service.DeleteProductService;
 import com.example.ddd_start.product.application.service.FetchProductService;
-import com.example.ddd_start.product.application.service.model.NewProductRequest;
 import com.example.ddd_start.product.application.service.PrintProductService;
 import com.example.ddd_start.product.application.service.RegisterProductService;
+import com.example.ddd_start.product.application.service.model.NewProductRequest;
 import com.example.ddd_start.product.application.service.model.ProductDTO;
 import com.example.ddd_start.product.application.service.model.UpdateProductRequest;
-import com.example.ddd_start.product.domain.ProductRepository;
-import com.example.ddd_start.product.presentation.model.ProductResponse;
 import com.example.ddd_start.product.presentation.model.RegisterProductCommand;
 import com.example.ddd_start.product.presentation.model.RegisterProductResponse;
 import com.example.ddd_start.product.presentation.model.UpdateProductCommand;
@@ -30,71 +28,72 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class ProductController {
 
-    private final PrintProductService printProductService;
-    private final DeleteProductService deleteProductService;
-    private final RegisterProductService registerProductService;
-    private final FetchProductService fetchProductService;
+  private final PrintProductService printProductService;
+  private final DeleteProductService deleteProductService;
+  private final RegisterProductService registerProductService;
+  private final FetchProductService fetchProductService;
 
-    @GetMapping("/products")
-    public ResponseEntity printAllProducts() {
-        List<ProductDTO> products = printProductService.printAllProducts();
-        return new ResponseEntity(
-                products,
-                HttpStatus.ACCEPTED
-        );
-    }
+  @GetMapping("/products")
+  public ResponseEntity printAllProducts() {
+    List<ProductDTO> products = printProductService.printAllProducts();
+    return new ResponseEntity(
+        products,
+        HttpStatus.ACCEPTED
+    );
+  }
 
-    @GetMapping("/products/{productId}")
-    public ResponseEntity printProductById(@PathVariable Long productId) {
-        ProductDTO product = printProductService.printProductById(productId);
-        return new ResponseEntity(
-            product,
-            HttpStatus.ACCEPTED
-        );
-    }
+  @GetMapping("/products/{productId}")
+  public ResponseEntity printProductById(@PathVariable Long productId) {
+    ProductDTO product = printProductService.printProductById(productId);
+    return new ResponseEntity(
+        product,
+        HttpStatus.ACCEPTED
+    );
+  }
 
-    @PostMapping("/products")
-    public ResponseEntity registerProduct(@RequestBody RegisterProductCommand cmd) {
-        NewProductRequest req = NewProductRequest.builder()
-            .title(cmd.title())
-            .slug(cmd.slug())
-            .price(cmd.price())
-            .description(cmd.description())
-            .categoryId(cmd.categoryId())
-            .images(cmd.images())
-            .build();
+  @PostMapping("/products")
+  public ResponseEntity registerProduct(@RequestBody RegisterProductCommand cmd) {
+    NewProductRequest req = NewProductRequest.builder()
+        .title(cmd.title())
+        .slug(cmd.slug())
+        .price(cmd.price())
+        .description(cmd.description())
+        .categoryId(cmd.categoryId())
+        .images(cmd.images())
+        .build();
 
-        Long productId = registerProductService.registerProductNoStore(req);
-        return new ResponseEntity(
-            new RegisterProductResponse(productId, "상품이 정상적으로 등록되었습니다."),
-            HttpStatus.ACCEPTED
-        );
-    }
+    Long productId = registerProductService.registerProductNoStore(req);
+    return new ResponseEntity(
+        new RegisterProductResponse(productId, "상품이 정상적으로 등록되었습니다."),
+        HttpStatus.ACCEPTED
+    );
+  }
 
-    @PutMapping("/products")
-    public ResponseEntity<UpdateProductResponse> updateProduct(@RequestBody UpdateProductCommand cmd) {
-        UpdateProductRequest req = UpdateProductRequest.builder()
-            .productId(cmd.productId())
-            .title(cmd.title())
-            .slug(cmd.slug())
-            .price(cmd.price())
-            .description(cmd.description())
-            .categoryId(cmd.categoryId())
-            .images(cmd.images())
-            .build();
+  @PutMapping("/products")
+  public ResponseEntity<UpdateProductResponse> updateProduct(
+      @RequestBody UpdateProductCommand cmd) {
+    UpdateProductRequest req = UpdateProductRequest.builder()
+        .productId(cmd.productId())
+        .title(cmd.title())
+        .slug(cmd.slug())
+        .price(cmd.price())
+        .description(cmd.description())
+        .categoryId(cmd.categoryId())
+        .images(cmd.images())
+        .build();
 
-        Long productId = registerProductService.updateProduct(req);
-        return new ResponseEntity(
-            new UpdateProductResponse(productId, "상품 변경이 완료되었습니다."),
-            HttpStatus.ACCEPTED
-        );
-    }
+    Long productId = registerProductService.updateProduct(req);
+    return new ResponseEntity(
+        new UpdateProductResponse(productId, "상품 변경이 완료되었습니다."),
+        HttpStatus.ACCEPTED
+    );
+  }
 
-    @DeleteMapping("/products")
-    public ResponseEntity deleteProduct(@RequestParam Long productId) {
-        deleteProductService.delete(productId);
-        return new ResponseEntity("상품이 정상적으로 삭제되었습니다.", HttpStatus.ACCEPTED);
-    }
+  @DeleteMapping("/products")
+  public ResponseEntity deleteProduct(@RequestParam Long productId) {
+    deleteProductService.delete(productId);
+    return new ResponseEntity("상품이 정상적으로 삭제되었습니다.", HttpStatus.ACCEPTED);
+  }
 
 
 }
