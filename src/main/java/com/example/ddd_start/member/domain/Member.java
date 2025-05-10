@@ -19,6 +19,7 @@ import java.util.List;
 @AllArgsConstructor
 @Getter
 @EqualsAndHashCode(of = "id")
+@Builder
 public class Member implements UserDetails {
 
   @Id
@@ -75,10 +76,15 @@ public class Member implements UserDetails {
     this.roles.add(role);
   }
 
-  public void changePassword(String currentPassword, String changePassword) {
-    if (!password.equals(currentPassword)) {
-      throw new PasswordNotMatchException();
-    }
+  public void changeEmail(String email) {
+    this.email = email;
+  }
+
+  public void changeUsername(String username) {
+    this.username = username;
+  }
+
+  public void changePassword(String changePassword) {
     this.password = changePassword;
   }
 

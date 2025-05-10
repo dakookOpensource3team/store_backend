@@ -14,5 +14,4 @@ public class JoinMemberRequest {
   String password;
   String username;
   AddressCommand addressReq;
-  String role;
 }
