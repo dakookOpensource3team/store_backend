@@ -1,9 +1,11 @@
-package com.example.ddd_start.product.application.service;
+package com.example.ddd_start.product.application.service.model;
 
 import java.util.List;
+import lombok.Builder;
 import lombok.Getter;
 
 @Getter
+@Builder
 public class NewProductRequest {
 
   private final Long storeId;

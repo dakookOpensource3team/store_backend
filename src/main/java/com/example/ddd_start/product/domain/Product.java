@@ -68,4 +68,17 @@ public class Product {
     this.updatedAt = Instant.now();
     this.store = store;
   }
+
+  public void updateProduct(String title, String slug, Money price,
+      String description, Long categoryId,
+      List<String> images, Store store) {
+    this.title = title;
+    this.slug = slug;
+    this.price = price;
+    this.description = description;
+    this.categoryId = categoryId;
+    this.images = images;
+    this.updatedAt = Instant.now();
+    this.store = store;
+  }
 }

@@ -16,4 +16,8 @@ public class DeleteProductService {
     Product product = productRepository.findById(productId)
         .orElseThrow(NoSuchElementException::new);
   }
+
+  public void delete(Long productId) {
+    productRepository.deleteById(productId);
+  }
 }
