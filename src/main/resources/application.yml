@@ -15,3 +15,6 @@ spring:
       maximum-pool-size:  101
 password:
   secretKey: TaeWooTaeWooSecretKey
+jwt:
+  secret: ${JWT_SECRET}
+  expires: ${JWT_EXPIRES} # 1 day
