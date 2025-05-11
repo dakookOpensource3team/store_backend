@@ -2,6 +2,7 @@ package com.example.ddd_start.product.presentation;
 
 import com.example.ddd_start.product.application.service.DeleteProductService;
 import com.example.ddd_start.product.application.service.FetchProductService;
+import com.example.ddd_start.product.application.service.LastlyRetrieveProductService;
 import com.example.ddd_start.product.application.service.PrintProductService;
 import com.example.ddd_start.product.application.service.RegisterProductService;
 import com.example.ddd_start.product.application.service.model.NewProductRequest;
@@ -9,6 +10,7 @@ import com.example.ddd_start.product.application.service.model.ProductDTO;
 import com.example.ddd_start.product.application.service.model.UpdateProductRequest;
 import com.example.ddd_start.product.presentation.model.RegisterProductCommand;
 import com.example.ddd_start.product.presentation.model.RegisterProductResponse;
+import com.example.ddd_start.product.presentation.model.SaveLastlyProductRequest;
 import com.example.ddd_start.product.presentation.model.UpdateProductCommand;
 import com.example.ddd_start.product.presentation.model.UpdateProductResponse;
 import java.util.List;
@@ -32,6 +34,7 @@ public class ProductController {
   private final DeleteProductService deleteProductService;
   private final RegisterProductService registerProductService;
   private final FetchProductService fetchProductService;
+  private final LastlyRetrieveProductService lastlyRetrieveProductService;
 
   @GetMapping("/products")
   public ResponseEntity printAllProducts() {
@@ -95,6 +98,22 @@ public class ProductController {
     return new ResponseEntity("상품이 정상적으로 삭제되었습니다.", HttpStatus.ACCEPTED);
   }
 
+  @PostMapping("/products/lastly")
+  public ResponseEntity saveLastlyRetrievedProduct(@RequestBody SaveLastlyProductRequest req) {
+    lastlyRetrieveProductService.saveLastlyRetrieveProduct(req.memberId(), req.productId());
+    return new ResponseEntity(
+        HttpStatus.ACCEPTED
+    );
+  }
 
+  @GetMapping("/products/lastly")
+  public ResponseEntity printLastlyRetrievedProduct(@RequestParam Long memberId) {
+    List<ProductDTO> productDTOS = lastlyRetrieveProductService.printLastlyRetrieveProduct(
+        memberId);
+    return new ResponseEntity(
+        productDTOS,
+        HttpStatus.ACCEPTED
+    );
+  }
 }
 
