@@ -8,6 +8,6 @@ import java.util.List;
 
 @Repository
 public interface LastlyRetrieveProductRepository extends JpaRepository<LastlyRetrieveProduct, Long> {
-    public List<LastlyRetrieveProduct> findLastlyRetrieveProductByMemberOrderByCreatedAtDesc(Member member);
+    public List<LastlyRetrieveProduct> findTop7LastlyRetrieveProductByMemberOrderByCreatedAtDesc(Member member);
 
 }
