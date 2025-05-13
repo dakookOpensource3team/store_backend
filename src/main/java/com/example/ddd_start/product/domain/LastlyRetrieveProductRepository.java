@@ -10,4 +10,6 @@ import java.util.List;
 public interface LastlyRetrieveProductRepository extends JpaRepository<LastlyRetrieveProduct, Long> {
     public List<LastlyRetrieveProduct> findTop7LastlyRetrieveProductByMemberOrderByCreatedAtDesc(Member member);
 
+    public void deleteAllByMember(Member member);
+
 }
