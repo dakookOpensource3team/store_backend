@@ -4,6 +4,7 @@ import com.example.ddd_start.common.domain.error.ValidationError;
 import com.example.ddd_start.common.domain.exception.NoOrderException;
 import com.example.ddd_start.common.domain.exception.ValidationErrorException;
 import com.example.ddd_start.common.domain.exception.VersionConflictException;
+import com.example.ddd_start.coupon.application.model.CouponDto;
 import com.example.ddd_start.coupon.domain.Coupon;
 import com.example.ddd_start.member.domain.Member;
 import com.example.ddd_start.member.domain.MemberRepository;
@@ -11,10 +12,13 @@ import com.example.ddd_start.order.application.model.ChangeOrderShippingInfoComm
 import com.example.ddd_start.order.application.model.PlaceOrderCommand;
 import com.example.ddd_start.order.application.model.StartShippingCommand;
 import com.example.ddd_start.order.domain.Order;
+import com.example.ddd_start.order.domain.OrderLine;
 import com.example.ddd_start.order.domain.OrderRepository;
 import com.example.ddd_start.order.domain.dto.OrderDto;
+import com.example.ddd_start.order.domain.dto.OrderLineDto;
 import com.example.ddd_start.order.domain.service.DiscountCalculationService;
 import com.example.ddd_start.order.domain.value.ShippingInfo;
+import com.example.ddd_start.product.domain.ProductRepository;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -34,6 +38,7 @@ public class OrderService {
   private final MemberRepository memberRepository;
   private final DiscountCalculationService discountCalculationService;
   private final ApplicationEventPublisher eventPublisher;
+  private final ProductRepository productRepository;
 
   @Transactional
   public void cancelOrder(Long orderId) {
@@ -69,19 +74,21 @@ public class OrderService {
 
   @Transactional
   public Long placeOrder(PlaceOrderCommand placeOrderCommand) {
-    Order order = new Order(placeOrderCommand.getOrderLines(), placeOrderCommand.getShippingInfo(),
-        placeOrderCommand.getOrderer());
-    order = calculatePaymentInfo(order, placeOrderCommand.getCoupons());
+    List<OrderLineDto> orderLineDtos = placeOrderCommand.orderLines();
+    List<OrderLine> orderLines = orderLineDtos.stream()
+        .map(orderLineDto ->
+            new OrderLine(
+                productRepository.findById(orderLineDto.productId())
+                    .orElseThrow(() -> new RuntimeException("Product not found")),
+                orderLineDto.price(),
+                orderLineDto.quantity()
+            )).toList();
+
+    Order order = new Order(orderLines, placeOrderCommand.shippingInfo(),
+        placeOrderCommand.orderer());
+    order = calculatePaymentInfo(order, placeOrderCommand.coupons());
     orderRepository.save(order);
     return order.getId();
-  }
-
-  private Order calculatePaymentInfo(Order order, List<Coupon> coupons) {
-    Member member = memberRepository.findById(order.getOrderer().getMemberId())
-        .orElseThrow(NoSuchElementException::new);
-    order.calculateAmounts(discountCalculationService, member.getMemberGrade(), coupons);
-
-    return order;
   }
 
   @Transactional
@@ -91,13 +98,13 @@ public class OrderService {
     if (command == null) {
       errors.add(ValidationError.of("empty"));
     } else {
-      if (command.getOrderer() == null) {
+      if (command.orderer() == null) {
         errors.add(ValidationError.of("orderer", "empty"));
       }
-      if (command.getOrderLines() == null) {
+      if (command.orderLines() == null) {
         errors.add(ValidationError.of("orderLine", "empty"));
       }
-      if (command.getShippingInfo() == null) {
+      if (command.shippingInfo() == null) {
         errors.add(ValidationError.of("shippingInfo", "empty"));
       }
     }
@@ -106,10 +113,35 @@ public class OrderService {
       throw new ValidationErrorException(errors);
     }
 
-    Order order = new Order(command.getOrderLines(), command.getShippingInfo(),
-        command.getOrderer());
+    List<OrderLineDto> orderLineDtos = command.orderLines();
+    List<OrderLine> orderLines = orderLineDtos.stream()
+        .map(orderLineDto ->
+            new OrderLine(
+                productRepository.findById(orderLineDto.productId())
+                    .orElseThrow(() -> new RuntimeException("Product not found")),
+                orderLineDto.price(),
+                orderLineDto.quantity()
+            )).toList();
+
+    Order order = calculatePaymentInfo(
+        new Order(
+            orderLines,
+            command.shippingInfo(),
+            command.orderer()
+        ),
+        command.coupons()
+    );
     orderRepository.save(order);
     return order.getId();
+  }
+
+  private Order calculatePaymentInfo(Order order, List<CouponDto> coupons) {
+    Member member = memberRepository.findById(order.getOrderer().getMemberId())
+        .orElseThrow(NoSuchElementException::new);
+
+    order.calculateAmounts(discountCalculationService, member.getMemberGrade(), coupons);
+
+    return order;
   }
 
   @Transactional
