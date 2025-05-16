@@ -1,11 +1,14 @@
 package com.example.ddd_start.order.presentation;
 
 import com.example.ddd_start.common.domain.exception.ValidationErrorException;
+import com.example.ddd_start.coupon.Exception.CouponAlreadyUsedException;
 import com.example.ddd_start.order.application.model.ChangeOrderShippingInfoCommand;
 import com.example.ddd_start.order.application.model.PlaceOrderCommand;
 import com.example.ddd_start.order.application.service.OrderService;
 import com.example.ddd_start.order.presentation.model.PlaceOrderRequest;
+import com.example.ddd_start.order.presentation.model.PlaceOrderResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -24,16 +27,18 @@ public class OrderController {
   }
 
   @PostMapping("/orders/place-order")
-  public Long order(@RequestBody PlaceOrderRequest req, BindingResult bindingResult) {
+  public ResponseEntity order(@RequestBody PlaceOrderRequest req, BindingResult bindingResult) {
     try {
       Long orderId = orderService.placeOrderV2(
           new PlaceOrderCommand(
-              req.getOrderLines(),
-              req.getShippingInfo(),
-              req.getOrderer(),
-              null));
-
-      return orderId;
+              req.orderLines(),
+              req.shippingInfo(),
+              req.orderer(),
+              req.coupons()
+          )
+      );
+      return ResponseEntity
+          .ok(new PlaceOrderResponse("주문이 정상적으로 완료되었습니다.", orderId));
     } catch (ValidationErrorException e) {
       e.getErrors().forEach(err -> {
         if (err.hasName()) {
@@ -44,6 +49,8 @@ public class OrderController {
       });
 
       throw new RuntimeException(e);
+    } catch (CouponAlreadyUsedException e) {
+      return ResponseEntity.badRequest().body("이미 사용한 쿠폰입니다.");
     }
   }
 

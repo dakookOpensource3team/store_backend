@@ -5,10 +5,11 @@ import static com.example.ddd_start.order.domain.value.OrderState.PAYMENT_WAITIN
 import static com.example.ddd_start.order.domain.value.OrderState.PREPARING;
 import static com.example.ddd_start.order.domain.value.OrderState.SHIPPED;
 
-import com.example.ddd_start.common.application.event.Events;
 import com.example.ddd_start.common.domain.Money;
+import com.example.ddd_start.coupon.application.model.CouponDto;
 import com.example.ddd_start.coupon.domain.Coupon;
 import com.example.ddd_start.member.domain.MemberGrade;
+import com.example.ddd_start.order.domain.dto.OrderLineDto;
 import com.example.ddd_start.order.domain.event.OrderCanceledEvent;
 import com.example.ddd_start.order.domain.event.OrderEvent;
 import com.example.ddd_start.order.domain.event.ShippingInfoChangedEvent;
@@ -38,7 +39,6 @@ import javax.persistence.Transient;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Version;
-import org.springframework.data.domain.DomainEvents;
 
 @Getter
 @Entity(name = "orders")
@@ -85,6 +85,7 @@ public class Order {
     setOrderLines(orderLines);
     setShippingInfo(shippingInfo);
     setOrderer(orderer);
+    createdAt = Instant.now();
   }
 
   private void setOrderer(Orderer orderer) {
@@ -119,8 +120,8 @@ public class Order {
 
   private Money calculateTotalAmounts() {
     return new Money(this.orderLines.stream()
-            .mapToInt(o -> o.getAmount().getAmount())
-            .sum());
+        .mapToInt(o -> o.getAmount().getAmount())
+        .sum());
   }
 
   public void changeShippingInfo(ShippingInfo shippingInfo) {
@@ -165,7 +166,7 @@ public class Order {
   }
 
   public void calculateAmounts(
-      DiscountCalculationService disCalSvc, MemberGrade grade, List<Coupon> coupons
+      DiscountCalculationService disCalSvc, MemberGrade grade, List<CouponDto> coupons
   ) {
     Money totalAmounts = getTotalAmounts();
     Money discountAmounts = disCalSvc.calculateDiscountAmounts(orderLines, coupons, grade);

@@ -1,5 +1,6 @@
 package com.example.ddd_start.member.applicaiton;
 
+import com.example.ddd_start.coupon.domain.CouponRepository;
 import com.example.ddd_start.member.domain.MemberRepository;
 import com.example.ddd_start.product.domain.LastlyRetrieveProductRepository;
 import lombok.RequiredArgsConstructor;
@@ -13,12 +14,14 @@ public class DeleteMemberService {
 
   private final MemberRepository memberRepository;
   private final LastlyRetrieveProductRepository lastlyRetrieveProductRepository;
+  private final CouponRepository couponRepository;
 
   @Transactional
   public void delete(Long id) {
     memberRepository.findById(id).ifPresent(member -> {
       memberRepository.delete(member);
       lastlyRetrieveProductRepository.deleteAllByMember(member);
+      couponRepository.deleteAllByMemberId(member.getId());
     });
   }
 }
