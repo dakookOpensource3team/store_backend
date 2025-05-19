@@ -6,10 +6,8 @@ import static com.example.ddd_start.order.domain.value.OrderState.PREPARING;
 import static com.example.ddd_start.order.domain.value.OrderState.SHIPPED;
 
 import com.example.ddd_start.common.domain.Money;
-import com.example.ddd_start.coupon.application.model.CouponDto;
-import com.example.ddd_start.coupon.domain.Coupon;
+import com.example.ddd_start.coupon.application.model.UserCouponDto;
 import com.example.ddd_start.member.domain.MemberGrade;
-import com.example.ddd_start.order.domain.dto.OrderLineDto;
 import com.example.ddd_start.order.domain.event.OrderCanceledEvent;
 import com.example.ddd_start.order.domain.event.OrderEvent;
 import com.example.ddd_start.order.domain.event.ShippingInfoChangedEvent;
@@ -166,7 +164,7 @@ public class Order {
   }
 
   public void calculateAmounts(
-      DiscountCalculationService disCalSvc, MemberGrade grade, List<CouponDto> coupons
+      DiscountCalculationService disCalSvc, MemberGrade grade, List<UserCouponDto> coupons
   ) {
     Money totalAmounts = getTotalAmounts();
     Money discountAmounts = disCalSvc.calculateDiscountAmounts(orderLines, coupons, grade);

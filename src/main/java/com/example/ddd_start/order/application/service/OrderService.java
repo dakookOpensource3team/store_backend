@@ -4,8 +4,7 @@ import com.example.ddd_start.common.domain.error.ValidationError;
 import com.example.ddd_start.common.domain.exception.NoOrderException;
 import com.example.ddd_start.common.domain.exception.ValidationErrorException;
 import com.example.ddd_start.common.domain.exception.VersionConflictException;
-import com.example.ddd_start.coupon.application.model.CouponDto;
-import com.example.ddd_start.coupon.domain.Coupon;
+import com.example.ddd_start.coupon.application.model.UserCouponDto;
 import com.example.ddd_start.member.domain.Member;
 import com.example.ddd_start.member.domain.MemberRepository;
 import com.example.ddd_start.order.application.model.ChangeOrderShippingInfoCommand;
@@ -135,7 +134,7 @@ public class OrderService {
     return order.getId();
   }
 
-  private Order calculatePaymentInfo(Order order, List<CouponDto> coupons) {
+  private Order calculatePaymentInfo(Order order, List<UserCouponDto> coupons) {
     Member member = memberRepository.findById(order.getOrderer().getMemberId())
         .orElseThrow(NoSuchElementException::new);
 
