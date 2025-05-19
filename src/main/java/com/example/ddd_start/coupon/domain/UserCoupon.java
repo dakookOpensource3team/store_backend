@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @NoArgsConstructor
-public class Coupon {
+public class UserCoupon {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -27,7 +27,7 @@ public class Coupon {
   @Embedded
   private Money fixedAmount;
 
-  public Coupon(String name, Boolean isUsed, Boolean isRatio, Float ratio, Member member,
+  public UserCoupon(String name, Boolean isUsed, Boolean isRatio, Float ratio, Member member,
       Money fixedAmount) {
     this.name = name;
     this.isUsed = isUsed;
