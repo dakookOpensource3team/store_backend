@@ -5,7 +5,9 @@ import com.example.ddd_start.coupon.application.model.CouponDefinitionDto;
 import com.example.ddd_start.coupon.application.model.RegisterCouponDefinitionCommand;
 import com.example.ddd_start.coupon.application.model.UpdateCouponDefinitionCommand;
 import com.example.ddd_start.coupon.presentation.model.RegisterCouponDefinitionRequest;
+import com.example.ddd_start.coupon.presentation.model.RegisterCouponDefinitionResponse;
 import com.example.ddd_start.coupon.presentation.model.UpdateCouponDefinitionRequest;
+import com.example.ddd_start.coupon.presentation.model.UpdateCouponDefinitionResponse;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -39,7 +41,8 @@ public class CouponDefinitionController {
             req.fixedAmount()
         ));
 
-    return ResponseEntity.ok(register);
+    return ResponseEntity
+        .ok(new RegisterCouponDefinitionResponse(register, "쿠폰이 정상적으로 정의되었습니다."));
   }
 
   @PutMapping("/coupon-definition")
@@ -54,7 +57,8 @@ public class CouponDefinitionController {
         )
     );
 
-    return ResponseEntity.ok(update);
+    return ResponseEntity
+        .ok(new UpdateCouponDefinitionResponse(update, "쿠폰 정의가 정상적으로 변경되었습니다."));
   }
 
   @DeleteMapping("coupon-definition")
