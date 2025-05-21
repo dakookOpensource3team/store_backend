@@ -11,4 +11,6 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
       + "join ProductCategory pc on pc.productId = p.id "
       + "where p.categoryId = :categoryId")
   List<Product> findByCategoryId(Long categoryId);
+
+  Boolean existsByTitle(String title);
 }
