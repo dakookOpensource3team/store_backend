@@ -36,6 +36,7 @@ pipeline {
                sh "pwd"
                sh "ls -al docker"
                sh "git log"
+               sh "git branch"
                sh "docker build -f ./docker/Dockerfile_backend -t ${IMAGE_NAME}:${IMAGE_TAG} ."
            }
         }
