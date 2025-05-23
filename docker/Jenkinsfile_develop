@@ -10,7 +10,7 @@ pipeline {
         
         stage('github-clone') {
             steps {
-                git branch: 'main',
+                git branch: 'develop',
                     credentialsId: 'github_token',
                     url: 'https://github.com/dakookOpensource3team/store_backend'
             }
@@ -33,11 +33,6 @@ pipeline {
         //도커 이미지 빌드
         stage('Docker Build') {
            steps {
-                sh 'git log -1 --oneline'
-                sh 'git branch -a'
-                 sh 'git rev-parse --abbrev-ref HEAD'
-                 sh 'git status'
-                sh 'git checkout develop'
                sh "docker build -f ./docker/Dockerfile_backend -t ${IMAGE_NAME}:${IMAGE_TAG} ."
            }
         }
