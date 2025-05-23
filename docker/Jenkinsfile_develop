@@ -33,6 +33,8 @@ pipeline {
         //도커 이미지 빌드
         stage('Docker Build') {
            steps {
+               sh "pwd"
+               sh "ls -al"
                sh "docker build -f ./docker/Dockerfile_backend -t ${IMAGE_NAME}:${IMAGE_TAG} ."
            }
         }
