@@ -1,5 +1,10 @@
 pipeline {
     agent any
+
+    environment {
+            IMAGE_NAME = "store_backend"
+            IMAGE_TAG = "latest"
+    }
     
     stages {
         
@@ -23,6 +28,13 @@ pipeline {
             steps {
                 archiveArtifacts artifacts: 'build/libs/*.jar', fingerprint: true
             }
+        }
+
+        //도커 이미지 빌드
+        stage('Docker Build') {
+           steps {
+               sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} -f Dockerfile_backend ."
+           }
         }
    		// stage...
         
