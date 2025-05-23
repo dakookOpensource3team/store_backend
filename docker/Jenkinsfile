@@ -5,10 +5,26 @@ pipeline {
         
         stage('github-clone') {
             steps {
-                git branch: 'main', credentialsId: 'github_token', url: 'https://github.com/dakookOpensource3team/store_backend'
+                git branch: 'main',
+                    credentialsId: 'github_token',
+                    url: 'https://github.com/dakookOpensource3team/store_backend'
             }
         }
-        
+
+        //빌드 시작
+        stage('build') {
+            steps {
+                sh './gradlew build'
+            }
+        }
+
+        //빌드 결과 아카이브에 저장
+        stage('Archive') {
+            steps {
+                archiveArtifacts artifacts: 'build/libs/*.jar', fingerprint: true
+            }
+        }
    		// stage...
+        
    	}
 }
