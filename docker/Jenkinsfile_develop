@@ -33,10 +33,11 @@ pipeline {
         //도커 이미지 빌드
         stage('Docker Build') {
            steps {
-               sh "pwd"
-               sh "ls -al docker"
-               sh "git log"
-               sh "git branch"
+                sh 'git log -1 --oneline'
+                sh 'git branch -a'
+                 sh 'git rev-parse --abbrev-ref HEAD'
+                 sh 'git status'
+                sh 'git checkout develop'
                sh "docker build -f ./docker/Dockerfile_backend -t ${IMAGE_NAME}:${IMAGE_TAG} ."
            }
         }
