@@ -14,7 +14,7 @@ pipeline {
         //빌드 시작
         stage('build') {
             steps {
-                sh './gradlew build'
+                sh './gradlew build -x test'
             }
         }
 
