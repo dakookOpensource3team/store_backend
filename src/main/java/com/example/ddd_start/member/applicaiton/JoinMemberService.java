@@ -29,6 +29,7 @@ public class JoinMemberService {
 
         //로직 검사
         checkDuplicatedEmail(req.getEmail());
+        checkDuplicatedUsername(req.getUsername());
 
         AddressCommand addressReq = req.getAddressReq();
         Address address = new Address(addressReq.getCity(), addressReq.getGuGun(), addressReq.getDong(),
@@ -45,6 +46,13 @@ public class JoinMemberService {
 
     private void checkDuplicatedEmail(String email) throws DuplicateEmailException {
         Long count = memberRepository.countByEmail(email);
+        if (count > 0) {
+            throw new DuplicateEmailException();
+        }
+    }
+
+    private void checkDuplicatedUsername(String userName) throws DuplicateEmailException {
+        Long count = memberRepository.countByEmail(userName);
         if (count > 0) {
             throw new DuplicateEmailException();
         }
