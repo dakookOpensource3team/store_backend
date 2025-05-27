@@ -178,6 +178,7 @@ public class OrderService {
                 o.getTotalAmounts(),
                 o.getOrderer().getName(),
                 o.getCreatedAt(),
+                o.getPaymentInfo(),
                 orderLineRepository.findByOrderId(o.getId())
             )
         ).toList();
