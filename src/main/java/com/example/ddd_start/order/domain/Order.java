@@ -24,7 +24,6 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.persistence.AttributeOverride;
 import javax.persistence.AttributeOverrides;
-import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Embedded;
 import javax.persistence.Entity;
@@ -33,15 +32,16 @@ import javax.persistence.Enumerated;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
-import javax.persistence.OneToMany;
 import javax.persistence.Transient;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.annotation.Version;
 
 @Getter
 @Entity(name = "orders")
 @NoArgsConstructor
+@Slf4j
 public class Order {
 
   @Id
@@ -58,7 +58,7 @@ public class Order {
           column = @Column(name = "receiver_phone_number"))
   })
   private ShippingInfo shippingInfo;
-  @OneToMany(mappedBy = "order", cascade = CascadeType.ALL)
+  @Transient
   List<OrderLine> orderLines;
   @Embedded
   @AttributeOverride(name = "amount", column = @Column(name = "total_amounts"))
@@ -86,7 +86,7 @@ public class Order {
       Orderer orderer,
       PaymentInfo paymentInfo) {
     this.orderNumber = generateOrderNumber();
-    this.orderState = PAYMENT_WAITING;
+    this.orderState = PREPARING;
     setOrderLines(orderLines);
     setShippingInfo(shippingInfo);
     setOrderer(orderer);
@@ -166,7 +166,7 @@ public class Order {
   }
 
   private void verifyNotYetShipped() {
-    if (orderState != PAYMENT_WAITING || orderState != PREPARING) {
+    if (!(orderState == PAYMENT_WAITING || orderState == PREPARING)) {
       throw new IllegalStateException("이미 출고 됬습니다.");
     }
   }
