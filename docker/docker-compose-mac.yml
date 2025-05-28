@@ -2,17 +2,15 @@ version: "3.7"
 
 services:
   mysql:
-    env_file:
-      - ./.env.docker
     image: mysql:5.7
     container_name: mysql
     platform: linux/amd64
-    volumes: 
+    volumes:
       - ./mysql/:/var/lib/mysql
     ports:
       - "3306:3306"
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ddd_start
     command:
       - --character-set-server=utf8
@@ -30,3 +28,17 @@ services:
     ports:
       - "9000:8080"
       - "50000:50000"
+
+  backend:
+    image: store_backend:latest
+    restart: on-failure
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/ddd_start?useSSL=false&useUnicode=true&serverTimezone=Asia/Seoul&characterEncoding=utf8
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES: ${JWT_EXPIRES}
+    depends_on:
+      - mysql
