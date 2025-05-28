@@ -24,6 +24,7 @@ public class DeleteMemberService {
       lastlyRetrieveProductRepository.deleteAllByMember(member);
       userCouponRepository.deleteAllByMemberId(member.getId());
       cartRepository.deleteAllByMemberId(member.getId());
+      userCouponRepository.deleteAllByMemberId(member.getId());
     });
   }
 }
