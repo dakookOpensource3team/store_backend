@@ -17,14 +17,13 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class FetchCategoryEventHandler {
 
-  private final FetchProductService fetchProductService;
   private final CategoryRepository categoryRepository;
 
   @Async
   @EventListener(FetchCategoryEvent.class)
   public void fetchCategory(FetchCategoryEvent event) {
     CategoryDTO categoryDTO = event.getCategoryDTO();
-    if (categoryRepository.findByName(categoryDTO.getName()).isPresent()) {
+    if (categoryRepository.findByName(categoryDTO.getName()).isEmpty()) {
       categoryRepository.save(
           new Category(
               categoryDTO.getId(),
