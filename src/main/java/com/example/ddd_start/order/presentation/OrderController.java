@@ -34,6 +34,7 @@ public class OrderController {
               req.orderLines(),
               req.shippingInfo(),
               req.orderer(),
+              req.paymentInfo(),
               req.coupons()
           )
       );

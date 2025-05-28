@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class DiscountCalculationService {
+
   private final UserCouponRepository userCouponRepository;
 
   @Transactional
