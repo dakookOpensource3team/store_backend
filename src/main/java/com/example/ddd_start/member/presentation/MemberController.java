@@ -2,6 +2,7 @@ package com.example.ddd_start.member.presentation;
 
 import com.example.ddd_start.auth.model.JwtToken;
 import com.example.ddd_start.common.domain.exception.DuplicateEmailException;
+import com.example.ddd_start.common.domain.exception.DuplicateUsernameException;
 import com.example.ddd_start.common.domain.exception.NoMemberFoundException;
 import com.example.ddd_start.common.domain.exception.PasswordNotMatchException;
 import com.example.ddd_start.member.applicaiton.ChangePasswordService;
@@ -58,6 +59,9 @@ public class MemberController {
     } catch (DuplicateEmailException e) {
       errors.rejectValue(e.getMessage(), "duplicate");
       return new ResponseEntity("이메일이 중복됩니다.", HttpStatus.BAD_REQUEST);
+    } catch (DuplicateUsernameException e) {
+      errors.rejectValue(e.getMessage(), "duplicate");
+      return new ResponseEntity("아이디가 중복됩니다.", HttpStatus.BAD_REQUEST);
     }
   }
 
