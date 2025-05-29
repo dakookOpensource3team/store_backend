@@ -91,6 +91,25 @@ public class ProductController {
     );
   }
 
+
+  @GetMapping("/products/category")
+  public ResponseEntity printProductByCategoryId(
+      @RequestParam Long categoryId,
+      @RequestParam(defaultValue = "0") Integer page,
+      @RequestParam(defaultValue = "10") Integer size) {
+
+    PageRequest pageRequest = PageRequest.of(page, size);
+    List<ProductDTO> product = printProductService.printProductByCategoryId(
+        categoryId,
+        pageRequest
+    );
+
+    return new ResponseEntity(
+        product,
+        HttpStatus.ACCEPTED
+    );
+  }
+
   @GetMapping("/products/search")
   public ResponseEntity searchProductsByTitle(@ModelAttribute SearchProductRequest req) {
     Pageable pageable = PageRequest.of(req.page(), req.size());

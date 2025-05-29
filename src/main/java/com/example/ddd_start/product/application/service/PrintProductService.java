@@ -64,4 +64,15 @@ public class PrintProductService {
   public Page<Product> printAllProductsOrderByHighPrice(Pageable pageable) {
     return productRepository.findAll(pageable);
   }
+
+  public List<ProductDTO> printProductByCategoryId(Long categoryId, Pageable pageable) {
+    List<Product> byCategoryId = productRepository.findByCategoryId(categoryId, pageable);
+
+    return byCategoryId.stream()
+        .map(p -> {
+          Category category = categoryRepository.findById(p.getCategoryId())
+              .orElseThrow(() -> new NoSuchElementException("Category not found"));
+          return ProductMapper.toDto(p, category);
+        }).toList();
+  }
 }
