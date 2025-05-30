@@ -35,16 +35,25 @@ public class OrderLine {
   private Money price;
   private Integer quantity;
 
-  public OrderLine(Product product, Order order, Integer quantity) {
+  public OrderLine(Product product, Order order, Integer price, Integer quantity) {
     changeProduct(product);
     changeOrder(order);
     this.price = product.getPrice();
-    this.amount = calculateAmount();
     this.quantity = quantity;
+    this.price = new Money(price);
+    this.amount = calculateAmount();
+  }
+
+  public OrderLine(Product product, Integer price, Integer quantity) {
+    changeProduct(product);
+    this.price = product.getPrice();
+    this.quantity = quantity;
+    this.price = new Money(price);
+    this.amount = calculateAmount();
   }
 
   private Money calculateAmount() {
-    return this.amount.multiply(quantity);
+    return this.price.multiply(quantity);
   }
 
   private void changeOrder(Order order) {
