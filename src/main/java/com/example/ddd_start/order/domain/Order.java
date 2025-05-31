@@ -5,9 +5,8 @@ import static com.example.ddd_start.order.domain.value.OrderState.PAYMENT_WAITIN
 import static com.example.ddd_start.order.domain.value.OrderState.PREPARING;
 import static com.example.ddd_start.order.domain.value.OrderState.SHIPPED;
 
-import com.example.ddd_start.common.application.event.Events;
 import com.example.ddd_start.common.domain.Money;
-import com.example.ddd_start.coupon.domain.Coupon;
+import com.example.ddd_start.coupon.application.model.UserCouponDto;
 import com.example.ddd_start.member.domain.MemberGrade;
 import com.example.ddd_start.order.domain.event.OrderCanceledEvent;
 import com.example.ddd_start.order.domain.event.OrderEvent;
@@ -15,6 +14,7 @@ import com.example.ddd_start.order.domain.event.ShippingInfoChangedEvent;
 import com.example.ddd_start.order.domain.service.DiscountCalculationService;
 import com.example.ddd_start.order.domain.value.OrderState;
 import com.example.ddd_start.order.domain.value.Orderer;
+import com.example.ddd_start.order.domain.value.PaymentInfo;
 import com.example.ddd_start.order.domain.value.RefundState;
 import com.example.ddd_start.order.domain.value.ShippingInfo;
 import java.time.Instant;
@@ -38,7 +38,6 @@ import javax.persistence.Transient;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Version;
-import org.springframework.data.domain.DomainEvents;
 
 @Getter
 @Entity(name = "orders")
@@ -72,6 +71,8 @@ public class Order {
   private Money paymentAmounts;
   @Enumerated(value = EnumType.STRING)
   private RefundState refundState;
+  @Enumerated(value = EnumType.STRING)
+  private PaymentInfo paymentInfo;
   private Long paymentId;
   @Version
   private Integer version;
@@ -79,12 +80,18 @@ public class Order {
   @Transient
   List<OrderEvent> orderEvents = new ArrayList<>();
 
-  public Order(List<OrderLine> orderLines, ShippingInfo shippingInfo, Orderer orderer) {
+  public Order(
+      List<OrderLine> orderLines,
+      ShippingInfo shippingInfo,
+      Orderer orderer,
+      PaymentInfo paymentInfo) {
     this.orderNumber = generateOrderNumber();
     this.orderState = PAYMENT_WAITING;
     setOrderLines(orderLines);
     setShippingInfo(shippingInfo);
     setOrderer(orderer);
+    this.paymentInfo = paymentInfo;
+    this.createdAt = Instant.now();
   }
 
   private void setOrderer(Orderer orderer) {
@@ -119,8 +126,8 @@ public class Order {
 
   private Money calculateTotalAmounts() {
     return new Money(this.orderLines.stream()
-            .mapToInt(o -> o.getAmount().getAmount())
-            .sum());
+        .mapToInt(o -> o.getAmount().getAmount())
+        .sum());
   }
 
   public void changeShippingInfo(ShippingInfo shippingInfo) {
@@ -165,7 +172,7 @@ public class Order {
   }
 
   public void calculateAmounts(
-      DiscountCalculationService disCalSvc, MemberGrade grade, List<Coupon> coupons
+      DiscountCalculationService disCalSvc, MemberGrade grade, List<UserCouponDto> coupons
   ) {
     Money totalAmounts = getTotalAmounts();
     Money discountAmounts = disCalSvc.calculateDiscountAmounts(orderLines, coupons, grade);
