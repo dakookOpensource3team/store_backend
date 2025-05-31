@@ -43,7 +43,9 @@ public class ProductController {
   private final LastlyRetrieveProductService lastlyRetrieveProductService;
 
   @GetMapping("/products")
-  public ResponseEntity printAllProducts(@RequestParam Integer page, @RequestParam Integer size) {
+  public ResponseEntity printAllProducts(
+      @RequestParam(defaultValue = "0") Integer page,
+      @RequestParam(defaultValue = "10") Integer size) {
     Pageable pageable = PageRequest.of(page, size);
 
     List<ProductDTO> products = printProductService.printAllProducts(pageable);
@@ -55,8 +57,8 @@ public class ProductController {
 
   @GetMapping("/products/low_price")
   public ResponseEntity printAllProductsOrderByLowPrice(
-      @RequestParam Integer page,
-      @RequestParam Integer size) {
+      @RequestParam(defaultValue = "0") Integer page,
+      @RequestParam(defaultValue = "10") Integer size) {
     Pageable pageable = PageRequest.of(page,
         size,
         Sort.by("price.amount").ascending());
@@ -69,8 +71,9 @@ public class ProductController {
   }
 
   @GetMapping("/products/high_price")
-  public ResponseEntity printAllProductsOrderByHighPrice(@RequestParam Integer page,
-      @RequestParam Integer size) {
+  public ResponseEntity printAllProductsOrderByHighPrice(
+      @RequestParam(defaultValue = "0") Integer page,
+      @RequestParam(defaultValue = "10") Integer size) {
     Pageable pageable = PageRequest.of(page,
         size,
         Sort.by("price.amount").descending());
@@ -111,12 +114,16 @@ public class ProductController {
   }
 
   @GetMapping("/products/search")
-  public ResponseEntity searchProductsByTitle(@ModelAttribute SearchProductRequest req) {
-    Pageable pageable = PageRequest.of(req.page(), req.size());
+  public ResponseEntity searchProductsByTitle(
+      @RequestParam String title,
+      @RequestParam(defaultValue = "0") Integer page,
+      @RequestParam(defaultValue = "10") Integer size
+  ) {
+    Pageable pageable = PageRequest.of(page, size);
 
     Page<Product> products = printProductService.searchProducts(
         new SearchProductCommand(
-            req.title(),
+            title,
             pageable
         ));
     return ResponseEntity.ok(products);
