@@ -2,6 +2,7 @@ package com.example.ddd_start.order.application.event;
 
 import com.example.ddd_start.common.domain.exception.NoOrderException;
 import com.example.ddd_start.order.domain.Order;
+import com.example.ddd_start.order.domain.OrderLineRepository;
 import com.example.ddd_start.order.domain.OrderRepository;
 import com.example.ddd_start.order.domain.event.OrderCanceledEvent;
 import com.example.ddd_start.order.domain.service.RefundService;
@@ -20,6 +21,7 @@ public class OrderCanceledEventHandler {
 
   private final RefundService refundService;
   private final OrderRepository orderRepository;
+  private final OrderLineRepository orderLineRepository;
 
   @Async
   @Transactional(value = TxType.REQUIRES_NEW)
@@ -28,6 +30,7 @@ public class OrderCanceledEventHandler {
       phase = TransactionPhase.AFTER_COMMIT)
   public void handle(OrderCanceledEvent event) {
     Order order = orderRepository.findById(event.getOrderId()).orElseThrow(NoOrderException::new);
+    orderLineRepository.deleteByOrderId(order.getId());
 
     refundService.refund(event.getPaymentId());
     order.completeRefund();

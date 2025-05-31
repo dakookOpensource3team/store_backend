@@ -18,4 +18,6 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
   List<Member> findByIdIn(Long[] blockingIds);
 
   Long countByEmail(String email);
+
+  Long countByUsername(String username);
 }

@@ -17,32 +17,38 @@ import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 @EnableWebSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
-    private final JwtTokenProvider jwtTokenProvider;
 
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity security) throws Exception {
-        return security
-                .httpBasic(AbstractHttpConfigurer::disable)
-                .csrf(AbstractHttpConfigurer::disable)
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(
-                        auth -> auth
-                                .requestMatchers(
-                                        new AntPathRequestMatcher("/members/join"),
-                                        new AntPathRequestMatcher("/members/sign-in"),
-                                        new AntPathRequestMatcher("/products"),
-                                        new AntPathRequestMatcher("/products/{productId}")
-                                ).permitAll()
-                                .anyRequest().authenticated()
-                )
-                .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider),
-                        UsernamePasswordAuthenticationFilter.class)
-                .build();
-    }
+  private final JwtTokenProvider jwtTokenProvider;
 
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        // BCrypt Encoder 사용
-        return PasswordEncoderFactories.createDelegatingPasswordEncoder();
-    }
+  @Bean
+  public SecurityFilterChain filterChain(HttpSecurity security) throws Exception {
+    return security
+        .httpBasic(AbstractHttpConfigurer::disable)
+        .csrf(AbstractHttpConfigurer::disable)
+        .sessionManagement(
+            session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+        .authorizeHttpRequests(
+            auth -> auth
+                .requestMatchers(
+                    new AntPathRequestMatcher("/members/join"),
+                    new AntPathRequestMatcher("/members/sign-in"),
+                    new AntPathRequestMatcher("/products"),
+                    new AntPathRequestMatcher("/products/{productId}"),
+                    new AntPathRequestMatcher("/swagger-ui.html"),
+                    new AntPathRequestMatcher("/v3/api-docs/**"),
+                    new AntPathRequestMatcher("/swagger-ui/**"),
+                    new AntPathRequestMatcher("/categories")
+                ).permitAll()
+                .anyRequest().authenticated()
+        )
+        .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider),
+            UsernamePasswordAuthenticationFilter.class)
+        .build();
+  }
+
+  @Bean
+  public PasswordEncoder passwordEncoder() {
+    // BCrypt Encoder 사용
+    return PasswordEncoderFactories.createDelegatingPasswordEncoder();
+  }
 }
