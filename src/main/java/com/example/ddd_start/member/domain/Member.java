@@ -1,18 +1,26 @@
 package com.example.ddd_start.member.domain;
 
 import com.example.ddd_start.common.domain.Address;
-import com.example.ddd_start.common.domain.exception.PasswordNotMatchException;
-
-import javax.persistence.*;
-
-import lombok.*;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import javax.persistence.Column;
+import javax.persistence.ElementCollection;
+import javax.persistence.Embedded;
+import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 
 @Entity
 @NoArgsConstructor
@@ -30,6 +38,7 @@ public class Member implements UserDetails {
   @Column(columnDefinition = "varchar(15)")
   private String username;
   private String password;
+  private String name;
   @Embedded
   private Address address;
   private Boolean blocked;
@@ -40,10 +49,10 @@ public class Member implements UserDetails {
   private List<String> roles = new ArrayList<>();
 
   @Override
-  public Collection<?extends GrantedAuthority> getAuthorities(){
+  public Collection<? extends GrantedAuthority> getAuthorities() {
     return this.roles.stream()
-            .map(SimpleGrantedAuthority::new)
-            .toList();
+        .map(SimpleGrantedAuthority::new)
+        .toList();
   }
 
   @Override
@@ -66,10 +75,12 @@ public class Member implements UserDetails {
     return true;
   }
 
-  public Member(String username, String email, String password, Address address, String role) {
+  public Member(String username, String email, String password, String name, Address address,
+      String role) {
     this.username = username;
     this.password = password;
     this.email = email;
+    this.name = name;
     this.address = address;
     this.memberGrade = MemberGrade.GENERAL;
     this.blocked = false;
@@ -82,6 +93,10 @@ public class Member implements UserDetails {
 
   public void changeUsername(String username) {
     this.username = username;
+  }
+
+  public void changeName(String name) {
+    this.name = name;
   }
 
   public void changePassword(String changePassword) {

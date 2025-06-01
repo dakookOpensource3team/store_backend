@@ -46,11 +46,37 @@ public class MemberController {
     String email = req.getEmail();
     String password = req.getPassword();
     String username = req.getUsername();
+    String name = req.getName();
     AddressCommand addressReq = req.getAddressReq();
 
     try {
       joinResponse joinResponse = joinMemberService.joinMember(
-          new joinCommand(email, password, username, addressReq, "USER"));
+          new joinCommand(email, password, username, name, addressReq, "USER"));
+
+      return new ResponseEntity<MemberResponse>(
+          new MemberResponse(
+              joinResponse.getMemberId(), joinResponse.getName(), "회원가입을 축하드립니다."),
+          HttpStatus.ACCEPTED);
+    } catch (DuplicateEmailException e) {
+      errors.rejectValue(e.getMessage(), "duplicate");
+      return new ResponseEntity("이메일이 중복됩니다.", HttpStatus.BAD_REQUEST);
+    } catch (DuplicateUsernameException e) {
+      errors.rejectValue(e.getMessage(), "duplicate");
+      return new ResponseEntity("아이디가 중복됩니다.", HttpStatus.BAD_REQUEST);
+    }
+  }
+
+  @PostMapping("/members/join/admin")
+  public ResponseEntity joinAdmin(@RequestBody JoinMemberRequest req, Errors errors) {
+    String email = req.getEmail();
+    String password = req.getPassword();
+    String username = req.getUsername();
+    String name = req.getName();
+    AddressCommand addressReq = req.getAddressReq();
+
+    try {
+      joinResponse joinResponse = joinMemberService.joinMember(
+          new joinCommand(email, password, username, name, addressReq, "ADMIN"));
 
       return new ResponseEntity<MemberResponse>(
           new MemberResponse(
@@ -70,11 +96,12 @@ public class MemberController {
     Long id = req.id();
     String email = req.email();
     String username = req.username();
+    String name = req.name();
     AddressCommand addressReq = req.addressReq();
 
     try {
       updateMemberService.updateMember(
-          new UpdateCommand(id, email, username, addressReq));
+          new UpdateCommand(id, email, username, name, addressReq));
       return new ResponseEntity("회원정보가 정상적으로 변경되었습니다.", HttpStatus.ACCEPTED);
     } catch (NotFoundException e) {
       return new ResponseEntity("회원정보가 존재하지 않습니다.", HttpStatus.NOT_FOUND);

@@ -12,6 +12,7 @@ public class joinCommand {
   String email;
   String password;
   String username;
+  String name;
   AddressCommand addressReq;
   String role;
 }
