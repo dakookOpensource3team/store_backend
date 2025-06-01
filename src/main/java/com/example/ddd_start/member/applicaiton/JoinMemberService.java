@@ -38,7 +38,8 @@ public class JoinMemberService {
         addressReq.getBunji());
 
     String encryptedPassword = passwordEncoder.encode(req.getPassword());
-    Member member = new Member(req.getUsername(), req.getEmail(), encryptedPassword, address,
+    Member member = new Member(req.getUsername(), req.getEmail(), encryptedPassword, req.getName(),
+        address,
         req.getRole());
 
     memberRepository.save(member);
