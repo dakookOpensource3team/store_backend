@@ -1,4 +1,4 @@
-package com.example.ddd_start.member.presentation;
+package com.example.ddd_start.member.presentation.model;
 
 import com.example.ddd_start.auth.model.JwtToken;
 import com.example.ddd_start.common.domain.exception.DuplicateEmailException;
@@ -11,19 +11,17 @@ import com.example.ddd_start.member.applicaiton.JoinMemberService;
 import com.example.ddd_start.member.applicaiton.MemberService;
 import com.example.ddd_start.member.applicaiton.UpdateMemberService;
 import com.example.ddd_start.member.applicaiton.model.*;
-import com.example.ddd_start.member.presentation.model.ChangePasswordRequest;
-import com.example.ddd_start.member.presentation.model.JoinMemberRequest;
-import com.example.ddd_start.member.presentation.model.MemberResponse;
-import com.example.ddd_start.member.presentation.model.SignInRequest;
-import com.example.ddd_start.member.presentation.model.UpdateMemberRequest;
+import com.example.ddd_start.member.presentation.MemberDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.crossstore.ChangeSetPersister.NotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.validation.Errors;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -141,5 +139,11 @@ public class MemberController {
     } catch (EmptyResultDataAccessException e) {
       return new ResponseEntity("해당 회원은 존재하지 않는 회원입니다.", HttpStatus.NOT_FOUND);
     }
+  }
+
+  @GetMapping("/get-current-member")
+  public ResponseEntity getCurrentMember(Authentication authentication) {
+    MemberDto memberDto = memberService.getMember(authentication.getName());
+    return ResponseEntity.ok(memberDto);
   }
 }
