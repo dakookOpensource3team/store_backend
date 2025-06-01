@@ -16,9 +16,8 @@ import lombok.NoArgsConstructor;
 public class Category {
 
   @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
-  @Column(columnDefinition = "varchar(20)")
+  @Column(columnDefinition = "TEXT")
   private String name;
   @Column(columnDefinition = "varchar(20)")
   private String slug;
