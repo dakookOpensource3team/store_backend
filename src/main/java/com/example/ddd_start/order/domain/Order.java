@@ -14,6 +14,7 @@ import com.example.ddd_start.order.domain.event.ShippingInfoChangedEvent;
 import com.example.ddd_start.order.domain.service.DiscountCalculationService;
 import com.example.ddd_start.order.domain.value.OrderState;
 import com.example.ddd_start.order.domain.value.Orderer;
+import com.example.ddd_start.order.domain.value.PaymentInfo;
 import com.example.ddd_start.order.domain.value.RefundState;
 import com.example.ddd_start.order.domain.value.ShippingInfo;
 import java.time.Instant;
@@ -70,6 +71,8 @@ public class Order {
   private Money paymentAmounts;
   @Enumerated(value = EnumType.STRING)
   private RefundState refundState;
+  @Enumerated(value = EnumType.STRING)
+  private PaymentInfo paymentInfo;
   private Long paymentId;
   @Version
   private Integer version;
@@ -77,13 +80,18 @@ public class Order {
   @Transient
   List<OrderEvent> orderEvents = new ArrayList<>();
 
-  public Order(List<OrderLine> orderLines, ShippingInfo shippingInfo, Orderer orderer) {
+  public Order(
+      List<OrderLine> orderLines,
+      ShippingInfo shippingInfo,
+      Orderer orderer,
+      PaymentInfo paymentInfo) {
     this.orderNumber = generateOrderNumber();
     this.orderState = PAYMENT_WAITING;
     setOrderLines(orderLines);
     setShippingInfo(shippingInfo);
     setOrderer(orderer);
-    createdAt = Instant.now();
+    this.paymentInfo = paymentInfo;
+    this.createdAt = Instant.now();
   }
 
   private void setOrderer(Orderer orderer) {

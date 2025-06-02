@@ -83,8 +83,12 @@ public class OrderService {
                 orderLineDto.quantity()
             )).toList();
 
-    Order order = new Order(orderLines, placeOrderCommand.shippingInfo(),
-        placeOrderCommand.orderer());
+    Order order = new Order(
+        orderLines,
+        placeOrderCommand.shippingInfo(),
+        placeOrderCommand.orderer(),
+        placeOrderCommand.paymentInfo()
+    );
     order = calculatePaymentInfo(order, placeOrderCommand.coupons());
     orderRepository.save(order);
     return order.getId();
@@ -126,7 +130,8 @@ public class OrderService {
         new Order(
             orderLines,
             command.shippingInfo(),
-            command.orderer()
+            command.orderer(),
+            command.paymentInfo()
         ),
         command.coupons()
     );
