@@ -5,7 +5,7 @@ import com.example.ddd_start.auth.model.JwtToken;
 import com.example.ddd_start.member.applicaiton.model.SignInCommand;
 import com.example.ddd_start.member.domain.Member;
 import com.example.ddd_start.member.domain.MemberRepository;
-import com.example.ddd_start.member.presentation.MemberDto;
+import com.example.ddd_start.member.presentation.model.MemberDto;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -73,7 +73,8 @@ public class MemberService {
   public MemberDto getMember(String name) {
     Member member = memberRepository.findMemberByUsername(name)
         .orElseThrow(IllegalArgumentException::new);
-    return new MemberDto(member.getUsername(), member.getName(), member.getEmail(),
+    return new MemberDto(member.getId(), member.getUsername(), member.getName(), member.getEmail(),
+        member.getRoles().get(0),
         member.getAddress());
   }
 }

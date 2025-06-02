@@ -10,8 +10,8 @@ import com.example.ddd_start.order.presentation.model.UpdateCartRequest;
 import com.example.ddd_start.order.presentation.model.UpdateCartResponse;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -56,14 +56,16 @@ public class CartController {
   public ResponseEntity deleteCart(@RequestParam Long cartId) {
     cartService.delete(cartId);
 
-    return ResponseEntity.ok("정상적으로 삭제되었습니다.");
+    String message = "정상적으로 삭제되었습니다.";
+    return new ResponseEntity(message, HttpStatus.ACCEPTED);
   }
 
   @DeleteMapping("/carts-all")
   public ResponseEntity deleteAllCarts(@RequestParam Long memberId) {
     cartService.deleteAll(memberId);
 
-    return ResponseEntity.ok("정상적으로 삭제되었습니다.");
+    String message = "정상적으로 삭제되었습니다.";
+    return new ResponseEntity(message, HttpStatus.ACCEPTED);
   }
 
 }
