@@ -9,6 +9,7 @@ import com.example.ddd_start.order.domain.CartRepository;
 import com.example.ddd_start.product.domain.Product;
 import com.example.ddd_start.product.domain.ProductRepository;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +28,16 @@ public class CartService {
         .orElseThrow(() -> new IllegalArgumentException("Member not found"));
     Product product = productRepository.findById(cmd.productId())
         .orElseThrow(() -> new IllegalArgumentException("Product not found"));
+
+    Optional<Cart> byMemberIdAndProductId = cartRepository.findByMemberIdAndProductId(
+        member.getId(), product.getId());
+
+    if(byMemberIdAndProductId.isPresent()) {
+      Cart cart = byMemberIdAndProductId.get();
+      cart.add(cmd.quantity());
+      cartRepository.save(cart);
+      return cart.getId();
+    }
 
     Cart cart = new Cart(member,
         product,
