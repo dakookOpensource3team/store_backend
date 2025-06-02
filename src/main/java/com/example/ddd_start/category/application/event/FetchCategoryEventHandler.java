@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 @Component
 @RequiredArgsConstructor
@@ -21,9 +22,10 @@ public class FetchCategoryEventHandler {
 
   @Async
   @EventListener(FetchCategoryEvent.class)
+  @Transactional
   public void fetchCategory(FetchCategoryEvent event) {
     CategoryDTO categoryDTO = event.getCategoryDTO();
-    if (categoryRepository.findByName(categoryDTO.getName()).isEmpty()) {
+    if (categoryRepository.findById(categoryDTO.getId()).isEmpty()) {
       categoryRepository.save(
           new Category(
               categoryDTO.getId(),
