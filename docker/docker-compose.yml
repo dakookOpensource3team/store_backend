@@ -5,13 +5,27 @@ services:
     env_file:
       - ./.env.docker
     image: mysql:5.7
+    container_name: mysql
     volumes: 
       - ./mysql/:/var/lib/mysql
     ports:
-      - 3306:3306
+      - "3306:3306"
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD}
       MYSQL_DATABASE: ddd_start
     command:
       - --character-set-server=utf8
       - --collation-server=utf8_general_ci
+
+  jenkins:
+    build:
+      context: .
+      dockerfile: Dockerfile_jenkins
+    container_name: jenkins
+    user: root
+    volumes:
+      - ./jenkins:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "9000:8080"
+      - "50000:50000"
