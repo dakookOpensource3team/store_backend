@@ -1,3 +1,7 @@
+server:
+  tomcat:
+    threads:
+      max: 100
 spring:
   config:
     import: optional:file:.env[.properties]
