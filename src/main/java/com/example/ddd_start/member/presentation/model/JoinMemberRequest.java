@@ -13,5 +13,6 @@ public class JoinMemberRequest {
   String email;
   String password;
   String username;
+  String name;
   AddressCommand addressReq;
 }
