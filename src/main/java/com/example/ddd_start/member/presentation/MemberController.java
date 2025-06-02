@@ -1,4 +1,4 @@
-package com.example.ddd_start.member.presentation.model;
+package com.example.ddd_start.member.presentation;
 
 import com.example.ddd_start.auth.model.JwtToken;
 import com.example.ddd_start.common.domain.exception.DuplicateEmailException;
@@ -11,7 +11,12 @@ import com.example.ddd_start.member.applicaiton.JoinMemberService;
 import com.example.ddd_start.member.applicaiton.MemberService;
 import com.example.ddd_start.member.applicaiton.UpdateMemberService;
 import com.example.ddd_start.member.applicaiton.model.*;
-import com.example.ddd_start.member.presentation.MemberDto;
+import com.example.ddd_start.member.presentation.model.ChangePasswordRequest;
+import com.example.ddd_start.member.presentation.model.JoinMemberRequest;
+import com.example.ddd_start.member.presentation.model.MemberDto;
+import com.example.ddd_start.member.presentation.model.MemberResponse;
+import com.example.ddd_start.member.presentation.model.SignInRequest;
+import com.example.ddd_start.member.presentation.model.UpdateMemberRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.EmptyResultDataAccessException;
