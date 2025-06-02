@@ -24,9 +24,7 @@ public class OrderLine {
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
   private Long product_id;
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "orders_id")
-  private Order order;
+  private Long orderId;
   @Embedded
   @AttributeOverride(name = "amount", column = @Column(name = "amount"))
   private Money amount;
@@ -38,7 +36,6 @@ public class OrderLine {
   public OrderLine(Product product, Order order, Integer price, Integer quantity) {
     changeProduct(product);
     changeOrder(order);
-    this.price = product.getPrice();
     this.quantity = quantity;
     this.price = new Money(price);
     this.amount = calculateAmount();
@@ -46,7 +43,6 @@ public class OrderLine {
 
   public OrderLine(Product product, Integer price, Integer quantity) {
     changeProduct(product);
-    this.price = product.getPrice();
     this.quantity = quantity;
     this.price = new Money(price);
     this.amount = calculateAmount();
@@ -56,9 +52,8 @@ public class OrderLine {
     return this.price.multiply(quantity);
   }
 
-  private void changeOrder(Order order) {
-    this.order = order;
-    order.getOrderLines().add(this);
+  public void changeOrder(Order order) {
+    this.orderId = order.getId();
   }
 
   private void changeProduct(Product product) {

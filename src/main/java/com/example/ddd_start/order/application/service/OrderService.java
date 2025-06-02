@@ -8,14 +8,18 @@ import com.example.ddd_start.coupon.application.model.UserCouponDto;
 import com.example.ddd_start.member.domain.Member;
 import com.example.ddd_start.member.domain.MemberRepository;
 import com.example.ddd_start.order.application.model.ChangeOrderShippingInfoCommand;
+import com.example.ddd_start.order.application.model.FindOrderResponse;
 import com.example.ddd_start.order.application.model.PlaceOrderCommand;
 import com.example.ddd_start.order.application.model.StartShippingCommand;
+import com.example.ddd_start.order.application.model.UpdateOrderCommand;
 import com.example.ddd_start.order.domain.Order;
 import com.example.ddd_start.order.domain.OrderLine;
+import com.example.ddd_start.order.domain.OrderLineRepository;
 import com.example.ddd_start.order.domain.OrderRepository;
 import com.example.ddd_start.order.domain.dto.OrderDto;
 import com.example.ddd_start.order.domain.dto.OrderLineDto;
 import com.example.ddd_start.order.domain.service.DiscountCalculationService;
+import com.example.ddd_start.order.domain.value.OrderState;
 import com.example.ddd_start.order.domain.value.ShippingInfo;
 import com.example.ddd_start.product.domain.ProductRepository;
 import java.util.ArrayList;
@@ -38,6 +42,7 @@ public class OrderService {
   private final DiscountCalculationService discountCalculationService;
   private final ApplicationEventPublisher eventPublisher;
   private final ProductRepository productRepository;
+  private final OrderLineRepository orderLineRepository;
 
   @Transactional
   public void cancelOrder(Long orderId) {
@@ -135,7 +140,11 @@ public class OrderService {
         ),
         command.coupons()
     );
-    orderRepository.save(order);
+    Order save = orderRepository.save(order);
+    orderLines.forEach(
+        orderLine -> orderLine.changeOrder(save)
+    );
+    orderLineRepository.saveAll(orderLines);
     return order.getId();
   }
 
@@ -156,5 +165,36 @@ public class OrderService {
     }
 
     order.changeShipped();
+  }
+
+  @Transactional(readOnly = true)
+  public List<FindOrderResponse> findMyOrder(Long memberId) {
+    return orderRepository.findOrderByMemberId(memberId)
+        .stream().map(
+            o -> new FindOrderResponse(
+                o.getId(),
+                o.getOrderState(),
+                o.getShippingInfo(),
+                o.getTotalAmounts(),
+                o.getOrderer().getName(),
+                o.getCreatedAt(),
+                o.getPaymentInfo(),
+                orderLineRepository.findByOrderId(o.getId())
+            )
+        ).toList();
+  }
+
+  @Transactional
+  public Long updateOrder(UpdateOrderCommand cmd) {
+    Order findOrder = orderRepository.findById(cmd.orderId())
+        .orElseThrow(NoSuchElementException::new);
+
+    if (findOrder.getOrderState() == OrderState.CANCEL) {
+      throw new IllegalStateException("이미 취소된 주문입니다.");
+    }
+
+    findOrder.changeShippingInfo(cmd.shippingInfo());
+    Order update = orderRepository.save(findOrder);
+    return update.getId();
   }
 }
