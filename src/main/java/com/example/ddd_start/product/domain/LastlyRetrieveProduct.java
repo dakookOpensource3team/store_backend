@@ -14,7 +14,7 @@ public class LastlyRetrieveProduct {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    @ManyToOne(cascade = CascadeType.REMOVE)
+    @ManyToOne
     Member member;
     @ManyToOne
     Product product;

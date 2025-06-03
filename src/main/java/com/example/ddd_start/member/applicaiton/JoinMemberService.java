@@ -3,12 +3,14 @@ package com.example.ddd_start.member.applicaiton;
 import com.example.ddd_start.common.domain.Address;
 import com.example.ddd_start.common.domain.exception.DuplicateEmailException;
 import com.example.ddd_start.common.domain.exception.DuplicateUsernameException;
+import com.example.ddd_start.member.applicaiton.event.JoinMemberEvent;
 import com.example.ddd_start.member.applicaiton.model.AddressCommand;
 import com.example.ddd_start.member.applicaiton.model.joinCommand;
 import com.example.ddd_start.member.applicaiton.model.joinResponse;
 import com.example.ddd_start.member.domain.Member;
 import com.example.ddd_start.member.domain.MemberRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +21,7 @@ public class JoinMemberService {
 
   private final MemberRepository memberRepository;
   private final PasswordEncoder passwordEncoder;
+  private final ApplicationEventPublisher eventPublisher;
 
   @Transactional
   public joinResponse joinMember(joinCommand req)
@@ -34,15 +37,20 @@ public class JoinMemberService {
     checkDuplicatedUsername(req.getUsername());
 
     AddressCommand addressReq = req.getAddressReq();
-    Address address = new Address(addressReq.getCity(), addressReq.getGuGun(), addressReq.getDong(),
-        addressReq.getBunji());
+    Address address = new Address(
+        addressReq.getAddress(),
+        addressReq.getDetailedAddress(),
+        addressReq.getZipCode()
+    );
 
     String encryptedPassword = passwordEncoder.encode(req.getPassword());
     Member member = new Member(req.getUsername(), req.getEmail(), encryptedPassword, req.getName(),
         address,
         req.getRole());
 
-    memberRepository.save(member);
+    Member save = memberRepository.save(member);
+
+    eventPublisher.publishEvent(new JoinMemberEvent(save));
 
     return new joinResponse(member.getId(), member.getUsername());
   }
