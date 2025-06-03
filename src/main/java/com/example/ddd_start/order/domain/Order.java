@@ -5,9 +5,8 @@ import static com.example.ddd_start.order.domain.value.OrderState.PAYMENT_WAITIN
 import static com.example.ddd_start.order.domain.value.OrderState.PREPARING;
 import static com.example.ddd_start.order.domain.value.OrderState.SHIPPED;
 
-import com.example.ddd_start.common.application.event.Events;
 import com.example.ddd_start.common.domain.Money;
-import com.example.ddd_start.coupon.domain.Coupon;
+import com.example.ddd_start.coupon.application.model.UserCouponDto;
 import com.example.ddd_start.member.domain.MemberGrade;
 import com.example.ddd_start.order.domain.event.OrderCanceledEvent;
 import com.example.ddd_start.order.domain.event.OrderEvent;
@@ -15,6 +14,7 @@ import com.example.ddd_start.order.domain.event.ShippingInfoChangedEvent;
 import com.example.ddd_start.order.domain.service.DiscountCalculationService;
 import com.example.ddd_start.order.domain.value.OrderState;
 import com.example.ddd_start.order.domain.value.Orderer;
+import com.example.ddd_start.order.domain.value.PaymentInfo;
 import com.example.ddd_start.order.domain.value.RefundState;
 import com.example.ddd_start.order.domain.value.ShippingInfo;
 import java.time.Instant;
@@ -24,7 +24,6 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.persistence.AttributeOverride;
 import javax.persistence.AttributeOverrides;
-import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Embedded;
 import javax.persistence.Entity;
@@ -33,16 +32,16 @@ import javax.persistence.Enumerated;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
-import javax.persistence.OneToMany;
 import javax.persistence.Transient;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.annotation.Version;
-import org.springframework.data.domain.DomainEvents;
 
 @Getter
 @Entity(name = "orders")
 @NoArgsConstructor
+@Slf4j
 public class Order {
 
   @Id
@@ -59,7 +58,8 @@ public class Order {
           column = @Column(name = "receiver_phone_number"))
   })
   private ShippingInfo shippingInfo;
-  @OneToMany(mappedBy = "order", cascade = CascadeType.ALL)
+  private String message;
+  @Transient
   List<OrderLine> orderLines;
   @Embedded
   @AttributeOverride(name = "amount", column = @Column(name = "total_amounts"))
@@ -72,6 +72,8 @@ public class Order {
   private Money paymentAmounts;
   @Enumerated(value = EnumType.STRING)
   private RefundState refundState;
+  @Enumerated(value = EnumType.STRING)
+  private PaymentInfo paymentInfo;
   private Long paymentId;
   @Version
   private Integer version;
@@ -79,12 +81,20 @@ public class Order {
   @Transient
   List<OrderEvent> orderEvents = new ArrayList<>();
 
-  public Order(List<OrderLine> orderLines, ShippingInfo shippingInfo, Orderer orderer) {
+  public Order(
+      List<OrderLine> orderLines,
+      ShippingInfo shippingInfo,
+      String message,
+      Orderer orderer,
+      PaymentInfo paymentInfo) {
     this.orderNumber = generateOrderNumber();
-    this.orderState = PAYMENT_WAITING;
+    this.orderState = PREPARING;
     setOrderLines(orderLines);
     setShippingInfo(shippingInfo);
+    this.message = message;
     setOrderer(orderer);
+    this.paymentInfo = paymentInfo;
+    this.createdAt = Instant.now();
   }
 
   private void setOrderer(Orderer orderer) {
@@ -119,8 +129,8 @@ public class Order {
 
   private Money calculateTotalAmounts() {
     return new Money(this.orderLines.stream()
-            .mapToInt(o -> o.getAmount().getAmount())
-            .sum());
+        .mapToInt(o -> o.getAmount().getAmount())
+        .sum());
   }
 
   public void changeShippingInfo(ShippingInfo shippingInfo) {
@@ -159,13 +169,13 @@ public class Order {
   }
 
   private void verifyNotYetShipped() {
-    if (orderState != PAYMENT_WAITING || orderState != PREPARING) {
+    if (!(orderState == PAYMENT_WAITING || orderState == PREPARING)) {
       throw new IllegalStateException("이미 출고 됬습니다.");
     }
   }
 
   public void calculateAmounts(
-      DiscountCalculationService disCalSvc, MemberGrade grade, List<Coupon> coupons
+      DiscountCalculationService disCalSvc, MemberGrade grade, List<UserCouponDto> coupons
   ) {
     Money totalAmounts = getTotalAmounts();
     Money discountAmounts = disCalSvc.calculateDiscountAmounts(orderLines, coupons, grade);

@@ -19,8 +19,8 @@ public class Money {
     return new Money(this.amount + money.amount);
   }
 
-  public Money multiply(int quantity) {
-    return new Money(this.amount * quantity);
+  public Money multiply(float quantity) {
+    return new Money((int)(this.amount * quantity));
   }
 
   public Money subtract(Money money) {

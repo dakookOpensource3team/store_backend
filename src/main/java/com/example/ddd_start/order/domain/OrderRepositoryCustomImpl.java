@@ -65,7 +65,7 @@ public class OrderRepositoryCustomImpl implements OrderRepositoryCustom {
   }
 
   @Override
-    public List<OrderDto> search() {
+  public List<OrderDto> search() {
     return queryFactory
         .select(Projections.constructor(OrderDto.class,
             order.orderNumber,

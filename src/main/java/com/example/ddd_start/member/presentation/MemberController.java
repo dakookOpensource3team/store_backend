@@ -2,6 +2,7 @@ package com.example.ddd_start.member.presentation;
 
 import com.example.ddd_start.auth.model.JwtToken;
 import com.example.ddd_start.common.domain.exception.DuplicateEmailException;
+import com.example.ddd_start.common.domain.exception.DuplicateUsernameException;
 import com.example.ddd_start.common.domain.exception.NoMemberFoundException;
 import com.example.ddd_start.common.domain.exception.PasswordNotMatchException;
 import com.example.ddd_start.member.applicaiton.ChangePasswordService;
@@ -12,6 +13,7 @@ import com.example.ddd_start.member.applicaiton.UpdateMemberService;
 import com.example.ddd_start.member.applicaiton.model.*;
 import com.example.ddd_start.member.presentation.model.ChangePasswordRequest;
 import com.example.ddd_start.member.presentation.model.JoinMemberRequest;
+import com.example.ddd_start.member.presentation.model.MemberDto;
 import com.example.ddd_start.member.presentation.model.MemberResponse;
 import com.example.ddd_start.member.presentation.model.SignInRequest;
 import com.example.ddd_start.member.presentation.model.UpdateMemberRequest;
@@ -21,8 +23,10 @@ import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.crossstore.ChangeSetPersister.NotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.validation.Errors;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -45,11 +49,12 @@ public class MemberController {
     String email = req.getEmail();
     String password = req.getPassword();
     String username = req.getUsername();
+    String name = req.getName();
     AddressCommand addressReq = req.getAddressReq();
 
     try {
       joinResponse joinResponse = joinMemberService.joinMember(
-          new joinCommand(email, password, username, addressReq, "USER"));
+          new joinCommand(email, password, username, name, addressReq, "USER"));
 
       return new ResponseEntity<MemberResponse>(
           new MemberResponse(
@@ -58,6 +63,34 @@ public class MemberController {
     } catch (DuplicateEmailException e) {
       errors.rejectValue(e.getMessage(), "duplicate");
       return new ResponseEntity("이메일이 중복됩니다.", HttpStatus.BAD_REQUEST);
+    } catch (DuplicateUsernameException e) {
+      errors.rejectValue(e.getMessage(), "duplicate");
+      return new ResponseEntity("아이디가 중복됩니다.", HttpStatus.BAD_REQUEST);
+    }
+  }
+
+  @PostMapping("/members/join/admin")
+  public ResponseEntity joinAdmin(@RequestBody JoinMemberRequest req, Errors errors) {
+    String email = req.getEmail();
+    String password = req.getPassword();
+    String username = req.getUsername();
+    String name = req.getName();
+    AddressCommand addressReq = req.getAddressReq();
+
+    try {
+      joinResponse joinResponse = joinMemberService.joinMember(
+          new joinCommand(email, password, username, name, addressReq, "ADMIN"));
+
+      return new ResponseEntity<MemberResponse>(
+          new MemberResponse(
+              joinResponse.getMemberId(), joinResponse.getName(), "회원가입을 축하드립니다."),
+          HttpStatus.ACCEPTED);
+    } catch (DuplicateEmailException e) {
+      errors.rejectValue(e.getMessage(), "duplicate");
+      return new ResponseEntity("이메일이 중복됩니다.", HttpStatus.BAD_REQUEST);
+    } catch (DuplicateUsernameException e) {
+      errors.rejectValue(e.getMessage(), "duplicate");
+      return new ResponseEntity("아이디가 중복됩니다.", HttpStatus.BAD_REQUEST);
     }
   }
 
@@ -66,11 +99,12 @@ public class MemberController {
     Long id = req.id();
     String email = req.email();
     String username = req.username();
+    String name = req.name();
     AddressCommand addressReq = req.addressReq();
 
     try {
       updateMemberService.updateMember(
-          new UpdateCommand(id, email, username, addressReq));
+          new UpdateCommand(id, email, username, name, addressReq));
       return new ResponseEntity("회원정보가 정상적으로 변경되었습니다.", HttpStatus.ACCEPTED);
     } catch (NotFoundException e) {
       return new ResponseEntity("회원정보가 존재하지 않습니다.", HttpStatus.NOT_FOUND);
@@ -110,5 +144,11 @@ public class MemberController {
     } catch (EmptyResultDataAccessException e) {
       return new ResponseEntity("해당 회원은 존재하지 않는 회원입니다.", HttpStatus.NOT_FOUND);
     }
+  }
+
+  @GetMapping("/get-current-member")
+  public ResponseEntity getCurrentMember(Authentication authentication) {
+    MemberDto memberDto = memberService.getMember(authentication.getName());
+    return ResponseEntity.ok(memberDto);
   }
 }

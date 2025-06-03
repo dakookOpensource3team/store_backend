@@ -21,11 +21,11 @@ public class UpdateMemberService {
 
     member.changeEmail(cmd.email());
     member.changeUsername(cmd.username());
+    member.changeName(cmd.name());
     member.changeAddress(new Address(
-            addressCommand.getCity(),
-            addressCommand.getGuGun(),
-            addressCommand.getDong(),
-            addressCommand.getBunji()
+            addressCommand.getAddress(),
+            addressCommand.getDetailedAddress(),
+            addressCommand.getZipCode()
         )
     );
 

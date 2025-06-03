@@ -36,6 +36,7 @@ public class ProductMapper {
         .price(product.getPrice().getAmount())
         .description(product.getDescription())
         .category(CategoryDTO.createCategoryDTO(category))
+        .images(product.getImages())
         .creationAt(product.getCreatedAt().toString())
         .updatedAt(product.getUpdatedAt().toString())
         .build();

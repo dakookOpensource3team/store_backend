@@ -1,13 +1,14 @@
 package com.example.ddd_start.product.presentation;
 
 import com.example.ddd_start.product.application.service.DeleteProductService;
-import com.example.ddd_start.product.application.service.FetchProductService;
 import com.example.ddd_start.product.application.service.LastlyRetrieveProductService;
 import com.example.ddd_start.product.application.service.PrintProductService;
 import com.example.ddd_start.product.application.service.RegisterProductService;
 import com.example.ddd_start.product.application.service.model.NewProductRequest;
 import com.example.ddd_start.product.application.service.model.ProductDTO;
+import com.example.ddd_start.product.application.service.model.SearchProductCommand;
 import com.example.ddd_start.product.application.service.model.UpdateProductRequest;
+import com.example.ddd_start.product.domain.Product;
 import com.example.ddd_start.product.presentation.model.RegisterProductCommand;
 import com.example.ddd_start.product.presentation.model.RegisterProductResponse;
 import com.example.ddd_start.product.presentation.model.SaveLastlyProductRequest;
@@ -15,6 +16,10 @@ import com.example.ddd_start.product.presentation.model.UpdateProductCommand;
 import com.example.ddd_start.product.presentation.model.UpdateProductResponse;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -33,12 +38,45 @@ public class ProductController {
   private final PrintProductService printProductService;
   private final DeleteProductService deleteProductService;
   private final RegisterProductService registerProductService;
-  private final FetchProductService fetchProductService;
   private final LastlyRetrieveProductService lastlyRetrieveProductService;
 
   @GetMapping("/products")
-  public ResponseEntity printAllProducts() {
-    List<ProductDTO> products = printProductService.printAllProducts();
+  public ResponseEntity printAllProducts(
+      @RequestParam(defaultValue = "0") Integer page,
+      @RequestParam(defaultValue = "10") Integer size) {
+    Pageable pageable = PageRequest.of(page, size);
+
+    List<ProductDTO> products = printProductService.printAllProducts(pageable);
+    return new ResponseEntity(
+        products,
+        HttpStatus.ACCEPTED
+    );
+  }
+
+  @GetMapping("/products/low_price")
+  public ResponseEntity printAllProductsOrderByLowPrice(
+      @RequestParam(defaultValue = "0") Integer page,
+      @RequestParam(defaultValue = "10") Integer size) {
+    Pageable pageable = PageRequest.of(page,
+        size,
+        Sort.by("price.amount").ascending());
+
+    Page<Product> products = printProductService.printAllProductsOrderByLowPrice(pageable);
+    return new ResponseEntity(
+        products,
+        HttpStatus.ACCEPTED
+    );
+  }
+
+  @GetMapping("/products/high_price")
+  public ResponseEntity printAllProductsOrderByHighPrice(
+      @RequestParam(defaultValue = "0") Integer page,
+      @RequestParam(defaultValue = "10") Integer size) {
+    Pageable pageable = PageRequest.of(page,
+        size,
+        Sort.by("price.amount").descending());
+
+    Page<Product> products = printProductService.printAllProductsOrderByHighPrice(pageable);
     return new ResponseEntity(
         products,
         HttpStatus.ACCEPTED
@@ -52,6 +90,41 @@ public class ProductController {
         product,
         HttpStatus.ACCEPTED
     );
+  }
+
+
+  @GetMapping("/products/category")
+  public ResponseEntity printProductByCategoryId(
+      @RequestParam Long categoryId,
+      @RequestParam(defaultValue = "0") Integer page,
+      @RequestParam(defaultValue = "10") Integer size) {
+
+    PageRequest pageRequest = PageRequest.of(page, size);
+    List<ProductDTO> product = printProductService.printProductByCategoryId(
+        categoryId,
+        pageRequest
+    );
+
+    return new ResponseEntity(
+        product,
+        HttpStatus.ACCEPTED
+    );
+  }
+
+  @GetMapping("/products/search")
+  public ResponseEntity searchProductsByTitle(
+      @RequestParam String title,
+      @RequestParam(defaultValue = "0") Integer page,
+      @RequestParam(defaultValue = "10") Integer size
+  ) {
+    Pageable pageable = PageRequest.of(page, size);
+
+    Page<Product> products = printProductService.searchProducts(
+        new SearchProductCommand(
+            title,
+            pageable
+        ));
+    return ResponseEntity.ok(products);
   }
 
   @PostMapping("/products")
