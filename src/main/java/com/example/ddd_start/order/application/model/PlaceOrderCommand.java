@@ -9,6 +9,7 @@ import java.util.List;
 
 public record PlaceOrderCommand(List<OrderLineDto> orderLines,
                                 ShippingInfo shippingInfo,
+                                String message,
                                 Orderer orderer,
                                 PaymentInfo paymentInfo,
                                 List<UserCouponDto> coupons) {

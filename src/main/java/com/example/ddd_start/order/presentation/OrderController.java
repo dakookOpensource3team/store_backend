@@ -41,6 +41,7 @@ public class OrderController {
           new PlaceOrderCommand(
               req.orderLines(),
               req.shippingInfo(),
+              req.message(),
               req.orderer(),
               req.paymentInfo(),
               req.coupons()
