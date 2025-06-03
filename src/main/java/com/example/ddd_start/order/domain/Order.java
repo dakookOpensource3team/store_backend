@@ -58,6 +58,7 @@ public class Order {
           column = @Column(name = "receiver_phone_number"))
   })
   private ShippingInfo shippingInfo;
+  private String message;
   @Transient
   List<OrderLine> orderLines;
   @Embedded
@@ -83,12 +84,14 @@ public class Order {
   public Order(
       List<OrderLine> orderLines,
       ShippingInfo shippingInfo,
+      String message,
       Orderer orderer,
       PaymentInfo paymentInfo) {
     this.orderNumber = generateOrderNumber();
     this.orderState = PREPARING;
     setOrderLines(orderLines);
     setShippingInfo(shippingInfo);
+    this.message = message;
     setOrderer(orderer);
     this.paymentInfo = paymentInfo;
     this.createdAt = Instant.now();

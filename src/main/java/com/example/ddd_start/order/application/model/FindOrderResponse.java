@@ -12,6 +12,7 @@ public record FindOrderResponse(
     Long orderId,
     OrderState orderState,
     ShippingInfo shippingInfo,
+    String message,
     Money totalAmounts,
     String orderer,
     Instant createdAt,

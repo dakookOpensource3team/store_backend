@@ -8,6 +8,7 @@ import java.util.Optional;
 import javax.persistence.LockModeType;
 import javax.persistence.QueryHint;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.jpa.repository.QueryHints;
 import org.springframework.data.repository.CrudRepository;
@@ -47,4 +48,8 @@ public interface OrderRepository extends CrudRepository<Order, Long>, OrderRepos
 
   @Query("select o from orders o where o.orderer.memberId = :memberId")
   List<Order> findOrderByMemberId(@Param("memberId") Long memberId);
+
+  @Modifying
+  @Query("delete from orders o where o.orderer.memberId = :memberId")
+  void deleteByMemberId(Long memberId);
 }

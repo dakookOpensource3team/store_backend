@@ -91,6 +91,7 @@ public class OrderService {
     Order order = new Order(
         orderLines,
         placeOrderCommand.shippingInfo(),
+        placeOrderCommand.message(),
         placeOrderCommand.orderer(),
         placeOrderCommand.paymentInfo()
     );
@@ -135,6 +136,7 @@ public class OrderService {
         new Order(
             orderLines,
             command.shippingInfo(),
+            command.message(),
             command.orderer(),
             command.paymentInfo()
         ),
@@ -175,6 +177,7 @@ public class OrderService {
                 o.getId(),
                 o.getOrderState(),
                 o.getShippingInfo(),
+                o.getMessage(),
                 o.getTotalAmounts(),
                 o.getOrderer().getName(),
                 o.getCreatedAt(),
